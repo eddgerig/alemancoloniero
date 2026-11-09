@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'widgets/white_turtle_icon.dart';
+import 'widgets/exit_lesson_dialog.dart';
+import 'lesson_order_letters.dart';
 
 class LessonFillBlankPage extends StatefulWidget {
   const LessonFillBlankPage({super.key});
@@ -179,6 +181,12 @@ class _LessonFillBlankPageState extends State<LessonFillBlankPage> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LessonOrderLettersPage(),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF27AE60),
@@ -234,7 +242,7 @@ class _LessonFillBlankPageState extends State<LessonFillBlankPage> {
                   const SizedBox(width: 16),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, size: 28, color: Color(0xFF2C3E50)),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => showExitLessonDialog(context),
                   ),
                 ],
               ),

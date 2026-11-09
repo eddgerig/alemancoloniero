@@ -7,6 +7,18 @@ enum LessonType {
 
   /// Flashcard stack where the user swipes left (correct) or right (incorrect).
   swipeCard,
+
+  /// One image on top and 4 text options stacked vertically below.
+  selectTextOption,
+
+  /// Fill in the blank space in a sentence by picking word tiles below.
+  fillInBlank,
+
+  /// Select and order letter tiles to spell out the target word.
+  orderLetters,
+
+  /// Assemble a sentence in Spanish from word bank based on Alemán Coloniero audio/speech bubble.
+  translateAssembleSentence,
 }
 
 /// Model class representing a lesson item loaded from the backend or local data.

@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'widgets/gradient_background.dart';
 import 'dashboard.dart';
+import 'speaker_story.dart';
 
 class SpeakerCardUnlockPage extends StatefulWidget {
   final String speakerName;
@@ -121,10 +122,11 @@ class _SpeakerCardUnlockPageState extends State<SpeakerCardUnlockPage>
                     height: 54,
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.pushAndRemoveUntil(
+                        Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (context) => const DashboardPage()),
-                          (route) => false,
+                          MaterialPageRoute(
+                            builder: (context) => const SpeakerStoryPage(),
+                          ),
                         );
                       },
                       style: ElevatedButton.styleFrom(

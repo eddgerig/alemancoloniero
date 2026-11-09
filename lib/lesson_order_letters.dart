@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'widgets/exit_lesson_dialog.dart';
+import 'lesson_assemble_sentence.dart';
 
 class LessonOrderLettersPage extends StatefulWidget {
   const LessonOrderLettersPage({super.key});
@@ -201,6 +203,12 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LessonAssembleSentencePage(),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF27AE60),
@@ -256,7 +264,7 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
                   const SizedBox(width: 16),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, size: 28, color: Color(0xFF2C3E50)),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => showExitLessonDialog(context),
                   ),
                 ],
               ),

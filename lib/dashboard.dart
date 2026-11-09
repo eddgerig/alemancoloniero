@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'widgets/gradient_background.dart';
+import 'module_intro.dart';
+import 'services/api_service.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -13,33 +16,10 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // Background Image / Gradient
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: NetworkImage(
-                  'https://images.unsplash.com/photo-1506744038136-46273834b3fb?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80',
-                ),
-                fit: BoxFit.cover,
-                opacity: 0.35,
-              ),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFFE8F3F1),
-                  Color(0xFFD3EADF),
-                  Color(0xFFE4F0DA),
-                ],
-              ),
-            ),
-          ),
-
-          SafeArea(
-            child: Column(
-              children: [
+      body: GradientBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
                 // 1. Top Bar
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -84,6 +64,62 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                       ),
                       const SizedBox(width: 10),
+                      // API Health Check Button
+                      GestureDetector(
+                        onTap: () async {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Comprobando conexión con la API...'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
+                          final result = await ApiService.checkHealth();
+                          if (context.mounted) {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                title: Row(
+                                  children: [
+                                    Icon(
+                                      result['success'] == true ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+                                      color: result['success'] == true ? const Color(0xFF27AE60) : Colors.red,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      result['success'] == true ? 'Backend Conectado' : 'Error de Conexión',
+                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                                content: Text(
+                                  'Status: ${result['status'] ?? 'N/A'}\nMensaje: ${result['message']}',
+                                  style: const TextStyle(fontSize: 15),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Aceptar', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.wifi_calling_3_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
                       // User Profile Icon
                       Container(
                         padding: const EdgeInsets.all(6),
@@ -124,16 +160,22 @@ class _DashboardPageState extends State<DashboardPage> {
                           ),
                           child: Row(
                             children: [
-                              // Mascot Placeholder
-                              Container(
+                              // Mascot Image
+                              SizedBox(
                                 width: 70,
                                 height: 70,
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.shade100,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Center(
-                                  child: Text('🦔', style: TextStyle(fontSize: 40)),
+                                child: Image.asset(
+                                  'assets/images/mascot.png',
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (context, error, stackTrace) => Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.shade100,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Center(
+                                      child: Text('🦔', style: TextStyle(fontSize: 40)),
+                                    ),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -189,6 +231,14 @@ class _DashboardPageState extends State<DashboardPage> {
                               subtitleColor: const Color(0xFFD84315),
                               topPill: '¡Comenzar!',
                               isCurrent: true,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const ModuleIntroPage(),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -276,7 +326,6 @@ class _DashboardPageState extends State<DashboardPage> {
               ],
             ),
           ),
-        ],
       ),
 
       // Bottom Navigation Bar
@@ -317,10 +366,13 @@ class _DashboardPageState extends State<DashboardPage> {
     bool isCompleted = false,
     bool isCurrent = false,
     bool isLocked = false,
+    VoidCallback? onTap,
   }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
         // Top Pill (e.g. ¡Comenzar!)
         if (topPill != null) ...[
           Container(
@@ -464,6 +516,7 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ],
       ],
+    ),
     );
   }
 }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'widgets/exit_lesson_dialog.dart';
+import 'cognitive_pause.dart';
 
 class LessonSelectTextPage extends StatefulWidget {
   const LessonSelectTextPage({super.key});
@@ -182,6 +184,12 @@ class _LessonSelectTextPageState extends State<LessonSelectTextPage> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context); // Close sheet
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CognitivePausePage(wordsCount: 5),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF27AE60),
@@ -237,7 +245,7 @@ class _LessonSelectTextPageState extends State<LessonSelectTextPage> {
                   const SizedBox(width: 16),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, size: 28, color: Color(0xFF2C3E50)),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => showExitLessonDialog(context),
                   ),
                 ],
               ),

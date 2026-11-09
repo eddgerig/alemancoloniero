@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'widgets/white_turtle_icon.dart';
+import 'widgets/exit_lesson_dialog.dart';
+import 'lesson_select_text.dart';
 
 class LessonSwipeCardPage extends StatefulWidget {
   const LessonSwipeCardPage({super.key});
@@ -11,6 +13,7 @@ class LessonSwipeCardPage extends StatefulWidget {
 class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
   Offset _cardOffset = Offset.zero;
   bool _isDragging = false;
+  int _currentCardIndex = 0;
 
   final List<Map<String, String>> _cards = [
     {'title': 'Pan', 'image': 'assets/images/pan.png', 'emoji': '🍞'},
@@ -18,8 +21,6 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
     {'title': 'Queso', 'image': 'assets/images/queso.png', 'emoji': '🧀'},
     {'title': 'Leche', 'image': 'assets/images/leche.png', 'emoji': '🥛'},
   ];
-
-  int _currentCardIndex = 0;
 
   void _onSwipe(bool isCorrectChoice) {
     // Show feedback modal sheet based on swipe direction
@@ -29,11 +30,20 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
     );
   }
 
-  void _nextCard() {
-    setState(() {
-      _cardOffset = Offset.zero;
-      _currentCardIndex = (_currentCardIndex + 1) % _cards.length;
-    });
+  void _advanceToNextCardOrLesson() {
+    if (_currentCardIndex < _cards.length - 1) {
+      // Advance to next card in the deck
+      setState(() {
+        _cardOffset = Offset.zero;
+        _currentCardIndex++;
+      });
+    } else {
+      // All cards completed -> Move to the next lesson page
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LessonSelectTextPage()),
+      );
+    }
   }
 
   void _showFeedbackSheet({required bool isCorrect, required String correctWord}) {
@@ -187,8 +197,15 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
                 height: 54,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context);
-                    _nextCard();
+                    Navigator.pop(context); // Close bottom sheet
+                    if (isCorrect) {
+                      _advanceToNextCardOrLesson();
+                    } else {
+                      // Reset offset so user can retry current card
+                      setState(() {
+                        _cardOffset = Offset.zero;
+                      });
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF27AE60),
@@ -219,6 +236,7 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
   @override
   Widget build(BuildContext context) {
     final currentCard = _cards[_currentCardIndex];
+    final double progress = (_currentCardIndex + 1) / _cards.length;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -234,7 +252,7 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: LinearProgressIndicator(
-                        value: 0.5,
+                        value: progress,
                         minHeight: 10,
                         backgroundColor: Colors.grey.shade300,
                         valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF29B6F6)),
@@ -244,7 +262,7 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
                   const SizedBox(width: 16),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, size: 28, color: Color(0xFF2C3E50)),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => showExitLessonDialog(context),
                   ),
                 ],
               ),
@@ -257,9 +275,9 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
                 color: const Color(0xFF1B5E20),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text(
-                "MÓDULO 2 · Z'OOWA KAFFE",
-                style: TextStyle(
+              child: Text(
+                "MÓDULO 2 · TARJETA ${_currentCardIndex + 1}/${_cards.length}",
+                style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 11,
@@ -489,6 +507,15 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
                                           style: const TextStyle(fontSize: 90),
                                         ),
                                       ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    currentCard['title']!,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF2C3E50),
                                     ),
                                   ),
                                 ],

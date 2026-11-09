@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'widgets/gradient_background.dart';
+import 'lesson_fill_blank.dart';
 
 class CognitivePausePage extends StatelessWidget {
   final int wordsCount;
@@ -105,7 +106,12 @@ class CognitivePausePage extends StatelessWidget {
                   height: 54,
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.pop(context);
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const LessonFillBlankPage(),
+                        ),
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF27AE60),

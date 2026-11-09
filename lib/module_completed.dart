@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'widgets/gradient_background.dart';
+import 'speaker_card_unlock.dart';
 import 'dashboard.dart';
 
 class ModuleCompletedPage extends StatelessWidget {
@@ -199,10 +200,11 @@ class ModuleCompletedPage extends StatelessWidget {
                   height: 54,
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.pushAndRemoveUntil(
+                      Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => const DashboardPage()),
-                        (route) => false,
+                        MaterialPageRoute(
+                          builder: (context) => const SpeakerCardUnlockPage(),
+                        ),
                       );
                     },
                     style: ElevatedButton.styleFrom(

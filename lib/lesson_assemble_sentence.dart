@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'widgets/exit_lesson_dialog.dart';
+import 'module_completed.dart';
 
 class LessonAssembleSentencePage extends StatefulWidget {
   const LessonAssembleSentencePage({super.key});
@@ -196,6 +198,12 @@ class _LessonAssembleSentencePageState extends State<LessonAssembleSentencePage>
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ModuleCompletedPage(),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF27AE60),
@@ -249,7 +257,7 @@ class _LessonAssembleSentencePageState extends State<LessonAssembleSentencePage>
                   const SizedBox(width: 16),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, size: 28, color: Color(0xFF2C3E50)),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => showExitLessonDialog(context),
                   ),
                 ],
               ),

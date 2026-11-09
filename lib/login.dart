@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dashboard.dart';
+import 'widgets/gradient_background.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,20 +15,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFE8F3F8), // Light blue-ish top
-              Color(0xFFDCEDDC), // Light green-ish middle
-              Color(0xFFA3CFA4), // Soft green bottom
-            ],
-          ),
-        ),
+      body: GradientBackground(
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
@@ -51,32 +39,21 @@ class _LoginPageState extends State<LoginPage> {
                 Stack(
                   alignment: Alignment.topCenter,
                   children: [
-                    // Mascot Emoji / Placeholder Illustration
-                    Padding(
-                      padding: const EdgeInsets.only(top: 0),
-                      child: Container(
-                        width: 140,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          color: Colors.amber.shade100,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
-                              blurRadius: 10,
-                            ),
-                          ],
-                        ),
-                        child: const Center(
-                          child: Text('🦔', style: TextStyle(fontSize: 85)),
+                    // Mascot Image peeking behind the card
+                    SizedBox(
+                      height: 150,
+                      child: Image.asset(
+                        'assets/images/mascot.png',
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => const Center(
+                          child: Text('🦔', style: TextStyle(fontSize: 90)),
                         ),
                       ),
                     ),
 
                     // White Card
                     Container(
-                      margin: const EdgeInsets.only(top: 100),
+                      margin: const EdgeInsets.only(top: 110),
                       padding: const EdgeInsets.all(24.0),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -280,7 +257,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 // Footer Text
                 const Text(
-                  '¿Aún no tienes una cuenta de dialecto?',
+                  '¿Aún no tienes una cuenta?',
                   style: TextStyle(
                     fontSize: 14,
                     color: Color(0xFF34495E),
