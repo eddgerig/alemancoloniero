@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "409986908046",
+    "project_id": "aleman-coloniero",
+    "storage_bucket": "aleman-coloniero.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:409986908046:android:fd53befed096a774fa2edf",
+        "android_client_info": {
+          "package_name": "com.example.alemancoloniero"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_GoBOVtcXj_vXy_DI0lv7ieQ9lULN3AM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
