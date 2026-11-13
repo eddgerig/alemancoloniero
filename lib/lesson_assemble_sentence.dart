@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'widgets/exit_lesson_dialog.dart';
-import 'module_completed.dart';
+import 'lesson_match_audio_image.dart';
 
 class LessonAssembleSentencePage extends StatefulWidget {
   const LessonAssembleSentencePage({super.key});
@@ -201,7 +201,7 @@ class _LessonAssembleSentencePageState extends State<LessonAssembleSentencePage>
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const ModuleCompletedPage(),
+                        builder: (context) => const LessonMatchAudioImagePage(),
                       ),
                     );
                   },

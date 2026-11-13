@@ -19,6 +19,9 @@ enum LessonType {
 
   /// Assemble a sentence in Spanish from word bank based on Alemán Coloniero audio/speech bubble.
   translateAssembleSentence,
+
+  /// Match 4 audio player items on the left with 4 image cards on the right.
+  matchAudioImage,
 }
 
 /// Model class representing a lesson item loaded from the backend or local data.

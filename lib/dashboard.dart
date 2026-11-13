@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'widgets/gradient_background.dart';
 import 'module_intro.dart';
 import 'services/api_service.dart';
+import 'services/auth_service.dart';
+import 'profile.dart';
+import 'dictionary.dart';
+import 'archive.dart';
+import 'voices.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -10,11 +16,71 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _DashboardPageState extends State<DashboardPage> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_currentIndex == 1) {
+      return Scaffold(
+        body: const DictionaryPage(),
+        bottomNavigationBar: _buildBottomNavigationBar(),
+      );
+    }
+
+    if (_currentIndex == 2) {
+      return Scaffold(
+        body: const ArchivePage(),
+        bottomNavigationBar: _buildBottomNavigationBar(),
+      );
+    }
+
+    if (_currentIndex == 3) {
+      return Scaffold(
+        body: const VoicesPage(),
+        bottomNavigationBar: _buildBottomNavigationBar(),
+      );
+    }
+
+    if (_currentIndex == 4) {
+      return Scaffold(
+        body: const ProfilePage(),
+        bottomNavigationBar: _buildBottomNavigationBar(),
+      );
+    }
+
+    final User? currentUser = AuthService().currentUser;
+    String userName = 'Edgar';
+    if (currentUser != null) {
+      if (currentUser.displayName != null && currentUser.displayName!.isNotEmpty) {
+        userName = currentUser.displayName!.split(' ').first;
+      } else if (currentUser.email != null && currentUser.email!.isNotEmpty) {
+        final emailPrefix = currentUser.email!.split('@').first;
+        userName = emailPrefix[0].toUpperCase() + emailPrefix.substring(1);
+      }
+    }
+
     return Scaffold(
       body: GradientBackground(
         child: SafeArea(
@@ -25,17 +91,28 @@ class _DashboardPageState extends State<DashboardPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   child: Row(
                     children: [
-                      // Flag Emoji/Container
+                      // Vertical Tricolor Flag (Black, Yellow, Red)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        width: 28,
+                        height: 20,
+                        clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(4),
                           boxShadow: const [
-                            BoxShadow(color: Colors.black12, blurRadius: 4),
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
                           ],
                         ),
-                        child: const Text('🇩🇪', style: TextStyle(fontSize: 20)),
+                        child: Row(
+                          children: [
+                            Expanded(child: Container(color: Colors.black)),
+                            Expanded(child: Container(color: const Color(0xFFFFCC00))),
+                            Expanded(child: Container(color: const Color(0xFFDD0000))),
+                          ],
+                        ),
                       ),
                       const SizedBox(width: 10),
                       const Text(
@@ -61,76 +138,6 @@ class _DashboardPageState extends State<DashboardPage> {
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      // API Health Check Button
-                      GestureDetector(
-                        onTap: () async {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Comprobando conexión con la API...'),
-                              duration: Duration(seconds: 1),
-                            ),
-                          );
-                          final result = await ApiService.checkHealth();
-                          if (context.mounted) {
-                            showDialog(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                title: Row(
-                                  children: [
-                                    Icon(
-                                      result['success'] == true ? Icons.check_circle_rounded : Icons.error_outline_rounded,
-                                      color: result['success'] == true ? const Color(0xFF27AE60) : Colors.red,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      result['success'] == true ? 'Backend Conectado' : 'Error de Conexión',
-                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                                content: Text(
-                                  'Status: ${result['status'] ?? 'N/A'}\nMensaje: ${result['message']}',
-                                  style: const TextStyle(fontSize: 15),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('Aceptar', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.wifi_calling_3_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      // User Profile Icon
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF1B4332),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 20,
                         ),
                       ),
                     ],
@@ -179,10 +186,10 @@ class _DashboardPageState extends State<DashboardPage> {
                                 ),
                               ),
                               const SizedBox(width: 16),
-                              const Column(
+                              Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
+                                  const Text(
                                     'Kuat Ocumma!',
                                     style: TextStyle(
                                       fontSize: 22,
@@ -190,10 +197,10 @@ class _DashboardPageState extends State<DashboardPage> {
                                       color: Color(0xFF0F172A),
                                     ),
                                   ),
-                                  SizedBox(height: 4),
+                                  const SizedBox(height: 4),
                                   Text(
-                                    'Bienvenido, Edgar',
-                                    style: TextStyle(
+                                    'Bienvenido, $userName',
+                                    style: const TextStyle(
                                       fontSize: 15,
                                       color: Color(0xFF475569),
                                     ),
@@ -329,26 +336,31 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
 
       // Bottom Navigation Bar
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF1B5E20),
-        unselectedItemColor: Colors.grey.shade600,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.menu_book_rounded), label: 'Diccionario'),
-          BottomNavigationBarItem(icon: Icon(Icons.graphic_eq_rounded), label: 'Acervo'),
-          BottomNavigationBarItem(icon: Icon(Icons.record_voice_over_rounded), label: 'Voces'),
-        ],
-      ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      currentIndex: _currentIndex,
+      onTap: (index) {
+        setState(() {
+          _currentIndex = index;
+        });
+      },
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: Colors.white,
+      selectedItemColor: const Color(0xFF1B5E20),
+      unselectedItemColor: Colors.grey.shade600,
+      selectedFontSize: 12,
+      unselectedFontSize: 12,
+      items: const [
+        BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Inicio'),
+        BottomNavigationBarItem(icon: Icon(Icons.menu_book_rounded), label: 'Diccionario'),
+        BottomNavigationBarItem(icon: Icon(Icons.graphic_eq_rounded), label: 'Acervo'),
+        BottomNavigationBarItem(icon: Icon(Icons.record_voice_over_rounded), label: 'Voces'),
+        BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Perfil'),
+      ],
     );
   }
 
@@ -375,93 +387,122 @@ class _DashboardPageState extends State<DashboardPage> {
         children: [
         // Top Pill (e.g. ¡Comenzar!)
         if (topPill != null) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            margin: const EdgeInsets.only(bottom: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1B4332),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 14),
-                const SizedBox(width: 2),
-                Text(
-                  topPill,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
+          AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: isCurrent ? _pulseAnimation.value : 1.0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1B4332),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      if (isCurrent)
+                        BoxShadow(
+                          color: const Color(0xFF1B4332).withOpacity(0.4),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 14),
+                      const SizedBox(width: 2),
+                      Text(
+                        topPill,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ],
 
         // Circular Node Button with Badge
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // Outer Ring
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isLocked ? Colors.grey.shade200 : Colors.white,
-                border: Border.all(
-                  color: isLocked ? Colors.grey.shade300 : nodeColor,
-                  width: 4,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+        AnimatedBuilder(
+          animation: _pulseAnimation,
+          builder: (context, child) {
+            final double scale = isCurrent ? _pulseAnimation.value : 1.0;
+
+            return Transform.scale(
+              scale: scale,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Outer Ring
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isLocked ? Colors.grey.shade200 : Colors.white,
+                      border: Border.all(
+                        color: isLocked ? Colors.grey.shade300 : nodeColor,
+                        width: isCurrent ? 4.5 : 4,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isCurrent
+                              ? nodeColor.withOpacity(0.4)
+                              : Colors.black.withOpacity(0.08),
+                          blurRadius: isCurrent ? 14 : 8,
+                          spreadRadius: isCurrent ? 2 : 0,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 62,
+                        height: 62,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isLocked
+                              ? Colors.grey.shade100
+                              : (isCompleted || isCurrent ? nodeColor : Colors.grey.shade300),
+                        ),
+                        child: Icon(
+                          icon,
+                          size: 32,
+                          color: isLocked
+                              ? Colors.grey.shade400
+                              : (isCompleted || isCurrent ? Colors.white : Colors.grey.shade600),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Badge Icon (bottom right)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        badgeIcon,
+                        size: 22,
+                        color: badgeColor,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              child: Center(
-                child: Container(
-                  width: 62,
-                  height: 62,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isLocked
-                        ? Colors.grey.shade100
-                        : (isCompleted || isCurrent ? nodeColor : Colors.grey.shade300),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 32,
-                    color: isLocked
-                        ? Colors.grey.shade400
-                        : (isCompleted || isCurrent ? Colors.white : Colors.grey.shade600),
-                  ),
-                ),
-              ),
-            ),
-
-            // Badge Icon (bottom right)
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  badgeIcon,
-                  size: 22,
-                  color: badgeColor,
-                ),
-              ),
-            ),
-          ],
+            );
+          },
         ),
 
         const SizedBox(height: 8),

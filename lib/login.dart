@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dashboard.dart';
+import 'register.dart';
+import 'forgot_password.dart';
+import 'services/auth_service.dart';
 import 'widgets/gradient_background.dart';
 
 class LoginPage extends StatefulWidget {
@@ -11,6 +14,85 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final AuthService _authService = AuthService();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final userCred = await _authService.signInWithGoogle();
+      if (userCred != null && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardPage()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error con Google: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleEmailSignIn() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      // If fields are empty for demo/testing, allow navigation directly to Dashboard
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardPage()),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _authService.signInWithEmail(email: email, password: password);
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardPage()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error de inicio de sesión: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +164,8 @@ class _LoginPageState extends State<LoginPage> {
 
                           // Correo Input
                           TextField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
                             decoration: InputDecoration(
                               hintText: 'ejemplo@aprender.com',
                               hintStyle: const TextStyle(color: Color(0xFF95A5A6)),
@@ -111,7 +195,14 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               ),
                               GestureDetector(
-                                onTap: () {},
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const ForgotPasswordPage(),
+                                    ),
+                                  );
+                                },
                                 child: const Text(
                                   '¿Olvidaste tu contraseña?',
                                   style: TextStyle(
@@ -127,6 +218,7 @@ class _LoginPageState extends State<LoginPage> {
 
                           // Contraseña Input
                           TextField(
+                            controller: _passwordController,
                             obscureText: _obscurePassword,
                             decoration: InputDecoration(
                               hintText: '••••••••',
@@ -160,12 +252,7 @@ class _LoginPageState extends State<LoginPage> {
                             width: double.infinity,
                             height: 54,
                             child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const DashboardPage()),
-                                );
-                              },
+                              onPressed: _isLoading ? null : _handleEmailSignIn,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF27AE60),
                                 foregroundColor: Colors.white,
@@ -175,13 +262,22 @@ class _LoginPageState extends State<LoginPage> {
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                               ),
-                              child: const Text(
-                                'Iniciar sesión',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2.5,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Iniciar sesión',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                             ),
                           ),
 
@@ -214,7 +310,7 @@ class _LoginPageState extends State<LoginPage> {
                             width: double.infinity,
                             height: 50,
                             child: OutlinedButton(
-                              onPressed: () {},
+                              onPressed: _isLoading ? null : _handleGoogleSignIn,
                               style: OutlinedButton.styleFrom(
                                 backgroundColor: const Color(0xFFEBF5F0),
                                 side: BorderSide.none,
@@ -225,7 +321,6 @@ class _LoginPageState extends State<LoginPage> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  // Google icon placeholder / Text
                                   Text(
                                     'G',
                                     style: TextStyle(
@@ -265,7 +360,12 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 4),
                 GestureDetector(
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const RegisterPage()),
+                    );
+                  },
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

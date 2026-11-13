@@ -1,10 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'lesson_question.dart';
 import 'widgets/white_turtle_icon.dart';
 import 'widgets/exit_lesson_dialog.dart';
 
-class ModuleIntroPage extends StatelessWidget {
+class ModuleIntroPage extends StatefulWidget {
   const ModuleIntroPage({super.key});
+
+  @override
+  State<ModuleIntroPage> createState() => _ModuleIntroPageState();
+}
+
+class _ModuleIntroPageState extends State<ModuleIntroPage> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isPlaying = false;
+
+  static const String _audioUrl =
+      'https://res.cloudinary.com/dsefkkkp/video/upload/v1794357254/gct_zoba_kaffe.mp4';
+
+  @override
+  void initState() {
+    super.initState();
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _playAudio({double speed = 1.0}) async {
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.setPlaybackRate(speed);
+      await _audioPlayer.play(UrlSource(_audioUrl));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al reproducir audio: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,34 +111,35 @@ class ModuleIntroPage extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Speaker Button
+                        // Speaker Button (Normal Speed)
                         GestureDetector(
-                          onTap: () {},
-                          child: Container(
+                          onTap: () => _playAudio(speed: 1.0),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
                             width: 60,
                             height: 60,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF29B6F6),
+                            decoration: BoxDecoration(
+                              color: _isPlaying ? const Color(0xFF0288D1) : const Color(0xFF29B6F6),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black12,
-                                  blurRadius: 6,
-                                  offset: Offset(0, 3),
+                                  color: Colors.black.withOpacity(0.12),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
                                 ),
                               ],
                             ),
-                            child: const Icon(
-                              Icons.volume_up_rounded,
+                            child: Icon(
+                              _isPlaying ? Icons.graphic_eq_rounded : Icons.volume_up_rounded,
                               color: Colors.white,
                               size: 32,
                             ),
                           ),
                         ),
                         const SizedBox(width: 12),
-                        // Turtle Button
+                        // Turtle Button (Slow Speed 0.6x)
                         GestureDetector(
-                          onTap: () {},
+                          onTap: () => _playAudio(speed: 0.6),
                           child: Container(
                             width: 38,
                             height: 38,
@@ -201,11 +246,14 @@ class ModuleIntroPage extends StatelessWidget {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LessonQuestionPage()),
-                    );
+                  onPressed: () async {
+                    await _audioPlayer.stop();
+                    if (context.mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LessonQuestionPage()),
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF27AE60),
