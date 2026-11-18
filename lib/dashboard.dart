@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'widgets/gradient_background.dart';
+import 'widgets/error_modal.dart';
+import 'widgets/loading_screen.dart';
 import 'module_intro.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
+import 'services/cache_service.dart';
 import 'profile.dart';
 import 'dictionary.dart';
 import 'archive.dart';
@@ -20,6 +24,8 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
   int _currentIndex = 0;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  List<Map<String, dynamic>> _apiMapNodes = [];
+  bool _isInitialLoading = true;
 
   @override
   void initState() {
@@ -32,6 +38,60 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    _fetchMapNodes();
+  }
+
+  Future<void> _fetchMapNodes() async {
+    // 1. Instant render from local cache if available (0ms load time)
+    final cachedNodes = await MapCacheService.getCachedMapNodes();
+    if (cachedNodes.isNotEmpty && mounted) {
+      setState(() {
+        _apiMapNodes = cachedNodes;
+        _isInitialLoading = false;
+      });
+    }
+
+    // 2. Fetch fresh map nodes from API in background
+    final result = await ApiService.getMapNodes();
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      final List<Map<String, dynamic>> freshNodes =
+          List<Map<String, dynamic>>.from(result['data']);
+      setState(() {
+        _apiMapNodes = freshNodes;
+        _isInitialLoading = false;
+      });
+      // Save fresh data to local persistent storage
+      await MapCacheService.saveMapNodes(freshNodes);
+    } else {
+      if (_apiMapNodes.isEmpty) {
+        // Show error modal only if no cached map is available
+        final String errorMsg = result['error'] ?? 'Error de conexión';
+        _showNoModulesBottomSheet(errorMsg);
+      }
+      setState(() {
+        _isInitialLoading = false;
+      });
+    }
+  }
+
+  void _showNoModulesBottomSheet(String errorDetails) {
+    if (!mounted) return;
+    ErrorModal.show(
+      context: context,
+      title: 'No hay módulos disponibles',
+      message: 'No tenemos módulos disponibles en este momento. Vuelve más tarde.',
+      errorDetails: errorDetails,
+      showExitButton: true,
+      exitText: 'Salir',
+      confirmText: 'Reintentar',
+      onConfirm: () {
+        Navigator.pop(context);
+        _fetchMapNodes();
+      },
+    );
   }
 
   @override
@@ -42,6 +102,12 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    if (_isInitialLoading && _apiMapNodes.isEmpty) {
+      return const LoadingScreen(
+        message: 'Cargando tu ruta de aprendizaje...',
+      );
+    }
+
     if (_currentIndex == 1) {
       return Scaffold(
         body: const DictionaryPage(),
@@ -213,117 +279,8 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
 
                         const SizedBox(height: 24),
 
-                        // Learning Path Grid / Nodes
-                        // Row 1: Saludos & Z'Oowa Kaffe
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildPathNode(
-                              icon: Icons.back_hand_rounded,
-                              nodeColor: const Color(0xFF1B5E20),
-                              badgeIcon: Icons.check_circle_rounded,
-                              badgeColor: Colors.lightBlue,
-                              title: '1. Saludos',
-                              subtitle: 'Completado',
-                              subtitleColor: const Color(0xFF2E7D32),
-                              isCompleted: true,
-                            ),
-                            _buildPathNode(
-                              icon: Icons.coffee_rounded,
-                              nodeColor: const Color(0xFF6D4C41),
-                              badgeIcon: Icons.access_time_filled_rounded,
-                              badgeColor: Colors.deepOrange,
-                              title: "2. Z'Oowa Kaffe",
-                              subtitle: 'En curso',
-                              subtitleColor: const Color(0xFFD84315),
-                              topPill: '¡Comenzar!',
-                              isCurrent: true,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const ModuleIntroPage(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        // Center Node: Relato
-                        Column(
-                          children: [
-                            _buildPathNode(
-                              icon: Icons.record_voice_over_rounded,
-                              nodeColor: Colors.grey.shade400,
-                              badgeIcon: Icons.lock_rounded,
-                              badgeColor: Colors.grey.shade300,
-                              title: 'Relato',
-                              bottomPill: 'Ich bin',
-                              isLocked: true,
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        // Row 2: Famili & Asa un trinka
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildPathNode(
-                              icon: Icons.group_rounded,
-                              nodeColor: Colors.grey.shade400,
-                              badgeIcon: Icons.lock_rounded,
-                              badgeColor: Colors.grey.shade300,
-                              title: '3. Famili',
-                              subtitle: 'Parentesco',
-                              subtitleColor: Colors.grey.shade600,
-                              isLocked: true,
-                            ),
-                            _buildPathNode(
-                              icon: Icons.restaurant_rounded,
-                              nodeColor: Colors.grey.shade400,
-                              badgeIcon: Icons.lock_rounded,
-                              badgeColor: Colors.grey.shade300,
-                              title: '4. Asa un trinka',
-                              subtitle: 'Gastronomia',
-                              subtitleColor: Colors.grey.shade600,
-                              isLocked: true,
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        // Row 3: Oostra & Expresiones
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildPathNode(
-                              icon: Icons.local_florist_rounded,
-                              nodeColor: Colors.grey.shade400,
-                              badgeIcon: Icons.lock_rounded,
-                              badgeColor: Colors.grey.shade300,
-                              title: '5. Oostra',
-                              subtitle: 'Festividades',
-                              subtitleColor: Colors.grey.shade600,
-                              isLocked: true,
-                            ),
-                            _buildPathNode(
-                              icon: Icons.chat_bubble_rounded,
-                              nodeColor: Colors.grey.shade400,
-                              badgeIcon: Icons.lock_rounded,
-                              badgeColor: Colors.grey.shade300,
-                              title: '6. Expresiones',
-                              subtitle: 'Modismos',
-                              subtitleColor: Colors.grey.shade600,
-                              isLocked: true,
-                            ),
-                          ],
-                        ),
+                        // Learning Path Grid / Nodes (Dynamic from API or fallback)
+                        _buildDynamicMapNodes(),
 
                         const SizedBox(height: 20),
                       ],
@@ -338,6 +295,148 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
       // Bottom Navigation Bar
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
+  }
+
+  Widget _buildDynamicMapNodes() {
+    if (_apiMapNodes.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Dynamic Map Nodes Layout from Backend
+    List<Widget> rows = [];
+    List<Map<String, dynamic>> currentRowNodes = [];
+
+    for (int i = 0; i < _apiMapNodes.length; i++) {
+      final node = _apiMapNodes[i];
+      final posicion = node['posicion'] ?? 'centro';
+
+      if (posicion == 'centro') {
+        if (currentRowNodes.isNotEmpty) {
+          rows.add(_buildRowFromNodes(currentRowNodes));
+          rows.add(const SizedBox(height: 30));
+          currentRowNodes = [];
+        }
+        rows.add(Column(children: [_buildSingleNodeFromApi(node)]));
+        rows.add(const SizedBox(height: 30));
+      } else {
+        currentRowNodes.add(node);
+        if (currentRowNodes.length == 2 || i == _apiMapNodes.length - 1) {
+          rows.add(_buildRowFromNodes(currentRowNodes));
+          rows.add(const SizedBox(height: 30));
+          currentRowNodes = [];
+        }
+      }
+    }
+
+    return Column(children: rows);
+  }
+
+  Widget _buildRowFromNodes(List<Map<String, dynamic>> nodes) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: nodes.map((node) => _buildSingleNodeFromApi(node)).toList(),
+    );
+  }
+
+  Widget _buildSingleNodeFromApi(Map<String, dynamic> node) {
+    final String estado = node['estado'] ?? 'bloqueado';
+    final bool isCompleted = estado == 'completado';
+    final bool isCurrent = estado == 'en_curso';
+    final bool isLocked = estado == 'bloqueado';
+
+    return _buildPathNode(
+      icon: _parseIcon(node['icono']),
+      nodeColor: _parseColor(node['color_hex']),
+      badgeIcon: _parseBadgeIcon(node['badge_tipo']),
+      badgeColor: _parseBadgeColor(node['badge_tipo']),
+      title: node['titulo'] ?? '',
+      subtitle: node['subtitulo'],
+      subtitleColor: isCompleted
+          ? const Color(0xFF2E7D32)
+          : (isCurrent ? const Color(0xFFD84315) : Colors.grey.shade600),
+      topPill: node['top_pill'],
+      bottomPill: node['bottom_pill'],
+      isCompleted: isCompleted,
+      isCurrent: isCurrent,
+      isLocked: isLocked,
+      onTap: () {
+        if (isLocked) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Este módulo o relato aún está bloqueado'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+          return;
+        }
+        final int moduloId = node['id'] is int
+            ? node['id']
+            : (int.tryParse(node['id'].toString()) ?? 1);
+        if (node['tipo'] == 'modulo' || node['numero'] != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ModuleIntroPage(moduloId: moduloId),
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  IconData _parseIcon(String? name) {
+    switch (name) {
+      case 'back_hand':
+        return Icons.back_hand_rounded;
+      case 'coffee':
+        return Icons.coffee_rounded;
+      case 'record_voice_over':
+        return Icons.record_voice_over_rounded;
+      case 'group':
+        return Icons.group_rounded;
+      case 'restaurant':
+        return Icons.restaurant_rounded;
+      case 'local_florist':
+        return Icons.local_florist_rounded;
+      case 'chat_bubble':
+        return Icons.chat_bubble_rounded;
+      default:
+        return Icons.star_rounded;
+    }
+  }
+
+  Color _parseColor(String? hex) {
+    if (hex == null || hex.isEmpty) return Colors.grey.shade400;
+    try {
+      final cleanHex = hex.replaceAll('#', '');
+      return Color(int.parse('FF$cleanHex', radix: 16));
+    } catch (_) {
+      return Colors.grey.shade400;
+    }
+  }
+
+  IconData _parseBadgeIcon(String? badgeType) {
+    switch (badgeType) {
+      case 'check':
+        return Icons.check_circle_rounded;
+      case 'reloj':
+        return Icons.access_time_filled_rounded;
+      case 'candado':
+      default:
+        return Icons.lock_rounded;
+    }
+  }
+
+  Color _parseBadgeColor(String? badgeType) {
+    switch (badgeType) {
+      case 'check':
+        return Colors.lightBlue;
+      case 'reloj':
+        return Colors.deepOrange;
+      case 'candado':
+      default:
+        return Colors.grey.shade300;
+    }
   }
 
   Widget _buildBottomNavigationBar() {

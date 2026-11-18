@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'widgets/gradient_background.dart';
-import 'lesson_fill_blank.dart';
 
 class CognitivePausePage extends StatelessWidget {
   final int wordsCount;
+  final String mensajeTitulo;
+  final String mensajeSubtitulo;
+  final VoidCallback? onContinue;
 
   const CognitivePausePage({
     super.key,
-    this.wordsCount = 5,
+    this.wordsCount = 1,
+    this.mensajeTitulo = "¡Ya reconoces palabras nuevas!",
+    this.mensajeSubtitulo = "Ahora vamos a escribirlas",
+    this.onContinue,
   });
 
   @override
@@ -75,7 +80,10 @@ class CognitivePausePage extends StatelessWidget {
                           const SizedBox(width: 10),
                           Flexible(
                             child: Text(
-                              '¡Ya reconoces $wordsCount palabras nuevas!',
+                              mensajeTitulo.isNotEmpty
+                                  ? mensajeTitulo
+                                  : '¡Ya reconoces $wordsCount palabras nuevas!',
+                              textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -86,9 +94,10 @@ class CognitivePausePage extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      const Text(
-                        'Ahora vamos a escribirlas',
-                        style: TextStyle(
+                      Text(
+                        mensajeSubtitulo,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
                           color: Color(0xFF2C3E50),
@@ -105,14 +114,7 @@ class CognitivePausePage extends StatelessWidget {
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LessonFillBlankPage(),
-                        ),
-                      );
-                    },
+                    onPressed: onContinue ?? () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF27AE60),
                       foregroundColor: Colors.white,

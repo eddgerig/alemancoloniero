@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import '../models/user_model.dart';
@@ -45,12 +46,25 @@ class ApiService {
     };
 
     if (user != null) {
-      final String? idToken = await user.getIdToken();
-      if (idToken != null) {
-        headers['Authorization'] = 'Bearer $idToken';
+      try {
+        final String? idToken = await user.getIdToken(true);
+        if (idToken != null && idToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $idToken';
+          debugPrint('==================================================');
+          debugPrint('USUARIO FIREBASE: ${user.email ?? user.uid}');
+          debugPrint('FIREBASE ID TOKEN ENVIADO AL SERVIDOR PRODUCCIÓN:');
+          debugPrint(idToken);
+          debugPrint('==================================================');
+          return headers;
+        }
+      } catch (e) {
+        debugPrint('Error obteniendo token de Firebase: $e');
       }
     }
 
+    debugPrint('==================================================');
+    debugPrint('SIN SESIÓN AUTENTICADA EN FIREBASE.');
+    debugPrint('==================================================');
     return headers;
   }
 
@@ -58,7 +72,7 @@ class ApiService {
   static Map<String, dynamic> _processResponse(http.Response response) {
     dynamic body;
     try {
-      body = jsonDecode(response.body);
+      body = jsonDecode(utf8.decode(response.bodyBytes));
     } catch (_) {
       body = response.body;
     }
@@ -114,7 +128,7 @@ class ApiService {
     try {
       final response = await http.get(uri).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
+        final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
         return {
           'success': true,
           'status': data['status'] ?? 'ok',
@@ -130,6 +144,171 @@ class ApiService {
       return {
         'success': false,
         'message': 'No se pudo conectar al servidor ($e)',
+      };
+    }
+  }
+
+  /// GET /modulos/mapa/ - Get Learning Path Map Nodes
+  static Future<Map<String, dynamic>> getMapNodes() async {
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$baseUrl/modulos/mapa/');
+    debugPrint('Cargando mapa desde: $uri');
+    try {
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 10));
+      debugPrint('Respuesta mapa (${response.statusCode}): ${response.body}');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final dynamic rawData = jsonDecode(utf8.decode(response.bodyBytes));
+        if (rawData is List) {
+          final list = List<Map<String, dynamic>>.from(rawData);
+          if (list.isEmpty) {
+            return {
+              'success': false,
+              'error': 'La API respondió con una lista vacía de módulos.',
+              'data': <Map<String, dynamic>>[],
+            };
+          }
+          return {
+            'success': true,
+            'data': list,
+          };
+        }
+      }
+      return {
+        'success': false,
+        'error': 'Error servidor (${response.statusCode}): ${response.reasonPhrase}',
+        'data': <Map<String, dynamic>>[],
+      };
+    } catch (e) {
+      debugPrint('Error cargando mapa desde $uri: $e');
+      return {
+        'success': false,
+        'error': 'No se pudo conectar al servidor ($uri).\nDetalle: $e',
+        'data': <Map<String, dynamic>>[],
+      };
+    }
+  }
+
+  /// GET /modulos/{id}/lecciones/ - Get Module Lessons
+  static Future<Map<String, dynamic>> getModuleLessons(int moduloId) async {
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$baseUrl/modulos/$moduloId/lecciones/');
+    debugPrint('Cargando lecciones del módulo desde: $uri');
+    try {
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 10));
+      debugPrint('Respuesta lecciones (${response.statusCode}): ${response.body}');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final dynamic rawData = jsonDecode(utf8.decode(response.bodyBytes));
+        if (rawData is Map<String, dynamic>) {
+          return {
+            'success': true,
+            'data': rawData,
+          };
+        }
+      }
+      return {
+        'success': false,
+        'error': 'Error servidor (${response.statusCode}): ${response.reasonPhrase}',
+      };
+    } catch (e) {
+      debugPrint('Error cargando lecciones desde $uri: $e');
+      return {
+        'success': false,
+        'error': 'No se pudo conectar al servidor ($uri).\nDetalle: $e',
+      };
+    }
+  }
+
+  /// GET /diccionario/ - Get Dictionary Words
+  static Future<List<Map<String, dynamic>>> getDictionaryWords() async {
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$baseUrl/diccionario/');
+    try {
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 10));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final dynamic rawData = jsonDecode(utf8.decode(response.bodyBytes));
+        if (rawData is List) {
+          return List<Map<String, dynamic>>.from(rawData);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error cargando diccionario: $e');
+    }
+    return [];
+  }
+
+  /// GET /acervos/ - Get Archive Collection Items
+  static Future<List<Map<String, dynamic>>> getArchiveItems() async {
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$baseUrl/acervos/');
+    try {
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 10));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final dynamic rawData = jsonDecode(utf8.decode(response.bodyBytes));
+        if (rawData is List) {
+          return List<Map<String, dynamic>>.from(rawData);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error cargando acervos: $e');
+    }
+    return [];
+  }
+
+  /// GET /hablantes/ - Get Speakers List
+  static Future<List<Map<String, dynamic>>> getSpeakers() async {
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$baseUrl/hablantes/');
+    try {
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 10));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final dynamic rawData = jsonDecode(utf8.decode(response.bodyBytes));
+        if (rawData is List) {
+          return List<Map<String, dynamic>>.from(rawData);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error cargando hablantes: $e');
+    }
+    return [];
+  }
+
+  /// POST /modulos/{id}/completar/ - Save module progress and unlock next module
+  static Future<Map<String, dynamic>> completeModule({
+    required int moduloId,
+    required double porcentajeAcierto,
+    required bool aprobado,
+    int? siguienteModuloId,
+  }) async {
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$baseUrl/modulos/$moduloId/completar/');
+    final Map<String, dynamic> payload = {
+      'modulo_id': moduloId,
+      'porcentaje_acierto': porcentajeAcierto,
+      'aprobado': aprobado,
+      'siguiente_modulo_id': siguienteModuloId,
+    };
+    final body = jsonEncode(payload);
+
+    try {
+      final response = await http
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+        return {
+          'success': true,
+          'data': data,
+        };
+      }
+      return {
+        'success': false,
+        'error': 'Error al guardar progreso (${response.statusCode})',
+      };
+    } catch (e) {
+      debugPrint('Error guardando progreso del módulo: $e');
+      return {
+        'success': false,
+        'error': 'No se pudo conectar al servidor ($e)',
       };
     }
   }
@@ -176,7 +355,7 @@ class ApiService {
     final uri = Uri.parse('$baseUrl/usuarios/').replace(queryParameters: queryParams.isEmpty ? null : queryParams);
     final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 10));
 
-    final dynamic rawData = jsonDecode(response.body);
+    final dynamic rawData = jsonDecode(utf8.decode(response.bodyBytes));
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (rawData is List) {
         return rawData.map((e) => BackendUser.fromJson(e as Map<String, dynamic>)).toList();

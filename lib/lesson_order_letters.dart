@@ -1,32 +1,71 @@
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'widgets/exit_lesson_dialog.dart';
-import 'lesson_assemble_sentence.dart';
 
 class LessonOrderLettersPage extends StatefulWidget {
-  const LessonOrderLettersPage({super.key});
+  final String moduleBadge;
+  final String title;
+  final String subtitle;
+  final String? imageUrl;
+  final String targetWord;
+  final List<String> availableLetters;
+  final VoidCallback? onLessonComplete;
+
+  const LessonOrderLettersPage({
+    super.key,
+    required this.moduleBadge,
+    required this.title,
+    required this.subtitle,
+    this.imageUrl,
+    required this.targetWord,
+    required this.availableLetters,
+    this.onLessonComplete,
+  });
 
   @override
   State<LessonOrderLettersPage> createState() => _LessonOrderLettersPageState();
 }
 
 class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
-  final String _targetWord = 'BROT';
-  final List<String> _availableLetters = ['O', 'T', 'P', 'R', 'A', 'B', 'S', 'U'];
+  late List<String?> _selectedSlots;
+  late List<int?> _slotOriginIndices;
+  final AudioPlayer _feedbackPlayer = AudioPlayer();
 
-  final List<String?> _selectedSlots = [null, null, null, null];
-  final List<int?> _slotOriginIndices = [null, null, null, null];
+  @override
+  void initState() {
+    super.initState();
+    _selectedSlots = List<String?>.filled(widget.targetWord.length, null);
+    _slotOriginIndices = List<int?>.filled(widget.targetWord.length, null);
+  }
+
+  @override
+  void dispose() {
+    _feedbackPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _playFeedbackSound(bool isCorrect) async {
+    try {
+      await _feedbackPlayer.stop();
+      if (isCorrect) {
+        await _feedbackPlayer.play(AssetSource('audio/correct_answer.wav'));
+      } else {
+        await _feedbackPlayer.play(AssetSource('audio/incorrect_answer.mp3'));
+      }
+    } catch (e) {
+      debugPrint('Error al reproducir audio de feedback: $e');
+    }
+  }
 
   void _onLetterTap(int letterIndex) {
     if (_slotOriginIndices.contains(letterIndex)) {
-      // Letter already selected
       return;
     }
 
-    // Find first empty slot
     final int emptyIndex = _selectedSlots.indexOf(null);
     if (emptyIndex != -1) {
       setState(() {
-        _selectedSlots[emptyIndex] = _availableLetters[letterIndex];
+        _selectedSlots[emptyIndex] = widget.availableLetters[letterIndex];
         _slotOriginIndices[emptyIndex] = letterIndex;
       });
     }
@@ -43,11 +82,13 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
 
   void _checkAnswer() {
     final String currentWord = _selectedSlots.map((e) => e ?? '').join('');
-    final bool isCorrect = currentWord == _targetWord;
+    final bool isCorrect = currentWord.toUpperCase().trim() == widget.targetWord.toUpperCase().trim();
+
+    _playFeedbackSound(isCorrect);
 
     _showFeedbackSheet(
       isCorrect: isCorrect,
-      correctWord: 'Brot',
+      correctWord: widget.targetWord,
     );
   }
 
@@ -74,7 +115,6 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Status (Correct vs Incorrect)
               Row(
                 children: [
                   Container(
@@ -101,10 +141,7 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 16),
-
-              // Option/Response Card
               Container(
                 padding: const EdgeInsets.all(16.0),
                 decoration: BoxDecoration(
@@ -121,7 +158,7 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isCorrect ? 'OPCIÓN CORRECTA:' : 'RESPUESTA CORRECTA',
+                            isCorrect ? 'PALABRA CORRECTA:' : 'RESPUESTA CORRECTA',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
@@ -141,74 +178,19 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
                         ],
                       ),
                     ),
-                    // Blue Audio Speaker Button
-                    GestureDetector(
-                      onTap: () {},
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF29B6F6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.volume_up_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
-
-              if (!isCorrect) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(16.0),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFBFBF9),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.access_time_rounded,
-                        color: Colors.grey.shade600,
-                        size: 22,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Volverás a ver esta palabra al final de la lección.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade700,
-                            height: 1.3,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
               const SizedBox(height: 24),
-
-              // Continuar Button
               SizedBox(
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LessonAssembleSentencePage(),
-                      ),
-                    );
+                    if (widget.onLessonComplete != null) {
+                      widget.onLessonComplete!();
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF27AE60),
@@ -245,7 +227,6 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // Top Progress Bar & Close button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
               child: Row(
@@ -269,17 +250,15 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
                 ],
               ),
             ),
-
-            // Module Badge
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFF1B5E20),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text(
-                "MÓDULO 2 · Z'OOWA KAFFE",
-                style: TextStyle(
+              child: Text(
+                widget.moduleBadge,
+                style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 11,
@@ -287,59 +266,61 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
                 ),
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // Title & Subtitle
-            const Text(
-              'Seleccione y ordene las letras',
-              style: TextStyle(
+            Text(
+              widget.title,
+              style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Selecciona las letras correctas para formar la palabra',
-              style: TextStyle(
+            Text(
+              widget.subtitle,
+              style: const TextStyle(
                 fontSize: 14,
                 color: Colors.grey,
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // Image Prominent Center
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32.0),
                 child: Center(
-                  child: Image.asset(
-                    'assets/images/pan.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => const Center(
-                      child: Text('🍞', style: TextStyle(fontSize: 100)),
-                    ),
-                  ),
+                  child: widget.imageUrl != null && widget.imageUrl!.startsWith('http')
+                      ? Image.network(
+                          widget.imageUrl!,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => Text(
+                            widget.imageUrl != null && widget.imageUrl!.length <= 4
+                                ? widget.imageUrl!
+                                : '☀️',
+                            style: const TextStyle(fontSize: 100),
+                          ),
+                        )
+                      : Text(
+                          widget.imageUrl != null && widget.imageUrl!.isNotEmpty
+                              ? widget.imageUrl!
+                              : '☀️',
+                          style: const TextStyle(fontSize: 100),
+                        ),
                 ),
               ),
             ),
-
-            // Letter Slots (4 empty boxes sitting on a line)
             Column(
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(_targetWord.length, (index) {
+                  children: List.generate(widget.targetWord.length, (index) {
                     final letter = _selectedSlots[index];
 
                     return GestureDetector(
                       onTap: () => _onSlotTap(index),
                       child: Container(
-                        width: 52,
-                        height: 58,
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                        width: 46,
+                        height: 52,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
                         decoration: BoxDecoration(
                           color: Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(12),
@@ -352,7 +333,7 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
                           child: Text(
                             letter ?? '',
                             style: const TextStyle(
-                              fontSize: 22,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF1E293B),
                             ),
@@ -363,58 +344,32 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
                   }),
                 ),
                 const SizedBox(height: 10),
-                // Horizontal Underline
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 40.0),
                   child: Divider(color: Colors.grey.shade400, thickness: 1.5),
                 ),
               ],
             ),
-
-            const SizedBox(height: 24),
-
-            // Available Letter Tiles Keyboard Grid (2 x 4)
+            const SizedBox(height: 20),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40.0),
-              child: Column(
-                children: [
-                  // Row 1: O, T, P, R
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(4, (i) {
-                      final isSelected = _slotOriginIndices.contains(i);
-                      final letter = _availableLetters[i];
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                alignment: WrapAlignment.center,
+                children: List.generate(widget.availableLetters.length, (i) {
+                  final isSelected = _slotOriginIndices.contains(i);
+                  final letter = widget.availableLetters[i];
 
-                      return _buildLetterTile(
-                        letter: letter,
-                        isSelected: isSelected,
-                        onTap: () => _onLetterTap(i),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 12),
-                  // Row 2: A, B, S, U
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(4, (i) {
-                      final letterIdx = i + 4;
-                      final isSelected = _slotOriginIndices.contains(letterIdx);
-                      final letter = _availableLetters[letterIdx];
-
-                      return _buildLetterTile(
-                        letter: letter,
-                        isSelected: isSelected,
-                        onTap: () => _onLetterTap(letterIdx),
-                      );
-                    }),
-                  ),
-                ],
+                  return _buildLetterTile(
+                    letter: letter,
+                    isSelected: isSelected,
+                    onTap: () => _onLetterTap(i),
+                  );
+                }),
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            // Bottom Check Button
+            const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: SizedBox(
@@ -456,8 +411,8 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
       onTap: isSelected ? null : onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        width: 52,
-        height: 52,
+        width: 48,
+        height: 48,
         decoration: BoxDecoration(
           color: isSelected ? Colors.grey.shade200 : Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -479,7 +434,7 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
           child: Text(
             isSelected ? '' : letter,
             style: const TextStyle(
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Color(0xFF2C3E50),
             ),

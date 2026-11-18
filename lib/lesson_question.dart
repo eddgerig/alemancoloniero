@@ -1,37 +1,123 @@
 import 'package:flutter/material.dart';
-import 'widgets/white_turtle_icon.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'widgets/animated_turtle_button.dart';
 import 'widgets/exit_lesson_dialog.dart';
-import 'lesson_swipe_card.dart';
 
 class LessonQuestionPage extends StatefulWidget {
-  const LessonQuestionPage({super.key});
+  final String moduleBadge;
+  final String title;
+  final String subtitle;
+  final String? audioUrl;
+  final String voiceBy;
+  final String correctAnswer;
+  final List<dynamic> options;
+  final VoidCallback? onLessonComplete;
+
+  const LessonQuestionPage({
+    super.key,
+    required this.moduleBadge,
+    required this.title,
+    required this.subtitle,
+    this.audioUrl,
+    required this.voiceBy,
+    required this.correctAnswer,
+    required this.options,
+    this.onLessonComplete,
+  });
 
   @override
   State<LessonQuestionPage> createState() => _LessonQuestionPageState();
 }
 
 class _LessonQuestionPageState extends State<LessonQuestionPage> {
-  int? _selectedIndex = 0; // Default selecting 'Pan' as in screenshot
+  int? _selectedIndex = 0;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _cardAudioPlayer = AudioPlayer();
+  final AudioPlayer _feedbackPlayer = AudioPlayer();
+  bool _isPlaying = false;
 
-  final List<Map<String, String>> _options = [
-    {'title': 'Pan', 'image': 'assets/images/pan.png', 'emoji': '🍞'},
-    {'title': 'Café', 'image': 'assets/images/cafe.png', 'emoji': '☕'},
-    {'title': 'Queso', 'image': 'assets/images/queso.png', 'emoji': '🧀'},
-    {'title': 'Leche', 'image': 'assets/images/leche.png', 'emoji': '🥛'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    _cardAudioPlayer.dispose();
+    _feedbackPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _playFeedbackSound(bool isCorrect) async {
+    try {
+      await _feedbackPlayer.stop();
+      if (isCorrect) {
+        await _feedbackPlayer.play(AssetSource('audio/correct_answer.wav'));
+      } else {
+        await _feedbackPlayer.play(AssetSource('audio/incorrect_answer.mp3'));
+      }
+    } catch (e) {
+      debugPrint('Error al reproducir audio de feedback: $e');
+    }
+  }
 
   void _checkAnswer() {
     if (_selectedIndex == null) return;
 
-    // For testing: 'Pan' (index 0) is correct, all others show incorrect sheet
-    final bool isCorrect = _selectedIndex == 0;
-    final String selectedTitle = _options[_selectedIndex!]['title']!;
+    final selectedOption = widget.options[_selectedIndex!];
+    final String selectedTitle = (selectedOption['titulo'] ?? selectedOption['title'] ?? '').toString();
+    final bool isCorrect = selectedTitle.toLowerCase().trim() == widget.correctAnswer.toLowerCase().trim();
+
+    _playFeedbackSound(isCorrect);
 
     _showFeedbackSheet(
       isCorrect: isCorrect,
-      correctWord: isCorrect ? selectedTitle : 'Pan',
+      correctWord: widget.correctAnswer,
     );
   }
+  Future<void> _playMainAudio({double speed = 1.0}) async {
+    final url = widget.audioUrl;
+    if (url == null || url.isEmpty) return;
+    try {
+      await _cardAudioPlayer.stop();
+      await _audioPlayer.stop();
+      await _audioPlayer.setPlaybackRate(speed);
+      await _audioPlayer.play(UrlSource(url));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al reproducir audio: $e')),
+        );
+      }
+    }
+  }
+
+  /// Plays an option card's audio independently without animating top audio button
+  Future<void> _playCardAudio(String? cardUrl) async {
+    final url = (cardUrl != null && cardUrl.isNotEmpty) ? cardUrl : widget.audioUrl;
+    if (url == null || url.isEmpty) return;
+    try {
+      await _audioPlayer.stop();
+      await _cardAudioPlayer.stop();
+      await _cardAudioPlayer.play(UrlSource(url));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al reproducir audio de opción: $e')),
+        );
+      }
+    }
+  }
+
+
 
   void _showFeedbackSheet({required bool isCorrect, required String correctWord}) {
     showModalBottomSheet(
@@ -125,7 +211,7 @@ class _LessonQuestionPageState extends State<LessonQuestionPage> {
                     ),
                     // Blue Audio Speaker Button
                     GestureDetector(
-                      onTap: () {},
+                      onTap: () => _playMainAudio(speed: 1.0),
                       child: Container(
                         width: 44,
                         height: 44,
@@ -146,7 +232,6 @@ class _LessonQuestionPageState extends State<LessonQuestionPage> {
 
               if (!isCorrect) ...[
                 const SizedBox(height: 12),
-                // "Volverás a ver esta palabra..." Card
                 Container(
                   padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
@@ -186,10 +271,9 @@ class _LessonQuestionPageState extends State<LessonQuestionPage> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context); // Close sheet
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LessonSwipeCardPage()),
-                    );
+                    if (widget.onLessonComplete != null) {
+                      widget.onLessonComplete!();
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF27AE60),
@@ -256,9 +340,9 @@ class _LessonQuestionPageState extends State<LessonQuestionPage> {
                 color: const Color(0xFF1B5E20),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text(
-                "MÓDULO 2 · Z'OOWA KAFFE",
-                style: TextStyle(
+              child: Text(
+                widget.moduleBadge,
+                style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 11,
@@ -270,18 +354,18 @@ class _LessonQuestionPageState extends State<LessonQuestionPage> {
             const SizedBox(height: 16),
 
             // Title & Subtitle
-            const Text(
-              'Selecciona la imagen correcta',
-              style: TextStyle(
+            Text(
+              widget.title,
+              style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'escucha el audio y selecciona la opción correcta',
-              style: TextStyle(
+            Text(
+              widget.subtitle,
+              style: const TextStyle(
                 fontSize: 14,
                 color: Colors.grey,
               ),
@@ -289,19 +373,20 @@ class _LessonQuestionPageState extends State<LessonQuestionPage> {
 
             const SizedBox(height: 20),
 
-            // Audio Controls
+            // Main Audio Controls (Top Speaker & Turtle)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 GestureDetector(
-                  onTap: () {},
-                  child: Container(
+                  onTap: () => _playMainAudio(speed: 1.0),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
                     width: 60,
                     height: 60,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF29B6F6),
+                    decoration: BoxDecoration(
+                      color: _isPlaying ? const Color(0xFF0288D1) : const Color(0xFF29B6F6),
                       shape: BoxShape.circle,
-                      boxShadow: [
+                      boxShadow: const [
                         BoxShadow(
                           color: Colors.black12,
                           blurRadius: 6,
@@ -309,41 +394,30 @@ class _LessonQuestionPageState extends State<LessonQuestionPage> {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.volume_up_rounded,
+                    child: Icon(
+                      _isPlaying ? Icons.graphic_eq_rounded : Icons.volume_up_rounded,
                       color: Colors.white,
                       size: 32,
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
-                GestureDetector(
-                  onTap: () {},
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF29B6F6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: WhiteTurtleIcon(size: 20, color: Colors.white),
-                    ),
-                  ),
+                AnimatedTurtleButton(
+                  onTap: () => _playMainAudio(speed: 0.6),
                 ),
               ],
             ),
 
             const SizedBox(height: 8),
 
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.mic_none_rounded, size: 16, color: Colors.grey),
-                SizedBox(width: 4),
+                const Icon(Icons.mic_none_rounded, size: 16, color: Colors.grey),
+                const SizedBox(width: 4),
                 Text(
-                  'Voz: Yolanda Fehr',
-                  style: TextStyle(
+                  'Voz: ${widget.voiceBy}',
+                  style: const TextStyle(
                     fontSize: 13,
                     color: Colors.grey,
                     fontWeight: FontWeight.w500,
@@ -359,7 +433,7 @@ class _LessonQuestionPageState extends State<LessonQuestionPage> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: GridView.builder(
-                  itemCount: _options.length,
+                  itemCount: widget.options.length,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: 16,
@@ -367,14 +441,19 @@ class _LessonQuestionPageState extends State<LessonQuestionPage> {
                     childAspectRatio: 0.95,
                   ),
                   itemBuilder: (context, index) {
-                    final option = _options[index];
+                    final option = widget.options[index];
                     final isSelected = _selectedIndex == index;
+
+                    final String title = (option['titulo'] ?? option['title'] ?? '').toString();
+                    final String? imageUrl = option['imagen_url'] ?? option['image_url'] ?? option['image'];
 
                     return GestureDetector(
                       onTap: () {
                         setState(() {
                           _selectedIndex = index;
                         });
+                        final String? cardAudio = option['audio_url'] ?? option['audio'];
+                        _playCardAudio(cardAudio);
                       },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
@@ -401,20 +480,27 @@ class _LessonQuestionPageState extends State<LessonQuestionPage> {
                             Expanded(
                               child: Padding(
                                 padding: const EdgeInsets.all(12.0),
-                                child: Image.asset(
-                                  option['image']!,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (context, error, stackTrace) => Center(
-                                    child: Text(
-                                      option['emoji']!,
-                                      style: const TextStyle(fontSize: 60),
-                                    ),
-                                  ),
-                                ),
+                                child: (imageUrl != null && imageUrl.startsWith('http'))
+                                    ? Image.network(
+                                        imageUrl,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (context, error, stackTrace) => Center(
+                                          child: Text(
+                                            imageUrl.length <= 4 ? imageUrl : '🥛',
+                                            style: const TextStyle(fontSize: 60),
+                                          ),
+                                        ),
+                                      )
+                                    : Center(
+                                        child: Text(
+                                          (imageUrl != null && imageUrl.isNotEmpty) ? imageUrl : '🥛',
+                                          style: const TextStyle(fontSize: 60),
+                                        ),
+                                      ),
                               ),
                             ),
                             Text(
-                              option['title']!,
+                              title,
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
