@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'lesson_question.dart';
 import 'cognitive_pause.dart';
 import 'lesson_order_letters.dart';
+import 'lesson_select_text.dart';
 import 'module_completed.dart';
 
 /// Runner that manages the sequential flow through all lessons in a module
@@ -26,7 +27,7 @@ class LessonRunnerPage extends StatefulWidget {
 class _LessonRunnerPageState extends State<LessonRunnerPage> {
   int _currentIndex = 0;
   int _correctAnswersCount = 0;
-  int _incorrectAnswersCount = 0;
+  final int _incorrectAnswersCount = 0;
 
   void _nextLesson() {
     if (_currentIndex + 1 < widget.lessons.length) {
@@ -176,6 +177,30 @@ class _LessonRunnerPageState extends State<LessonRunnerPage> {
         imageUrl: currentLesson['imagen_url'],
         targetWord: (currentLesson['palabra_objetivo'] ?? 'MOORKA').toString(),
         availableLetters: letters,
+        onLessonComplete: () {
+          _correctAnswersCount++;
+          _nextLesson();
+        },
+      );
+    }
+
+    // 4. Activity: selectTextOption
+    if (lessonType == 'selectTextOption') {
+      final List<dynamic> rawOptions = currentLesson['opciones_texto'] ??
+          currentLesson['opciones_detalle'] ??
+          currentLesson['opciones'] ??
+          [];
+
+      return LessonSelectTextPage(
+        key: ValueKey('lesson_$_currentIndex'),
+        moduleBadge: widget.moduleTitle,
+        title: currentLesson['pregunta_titulo'] ?? 'Selecciona la opción correcta',
+        subtitle: currentLesson['pregunta_subtitulo'] ?? 'escucha el audio y selecciona la opción correcta',
+        imageUrl: currentLesson['imagen_url'],
+        audioUrl: currentLesson['audio_url'],
+        voiceBy: currentLesson['voz_hablante'] ?? '',
+        correctAnswer: currentLesson['respuesta_correcta'] ?? '',
+        options: rawOptions,
         onLessonComplete: () {
           _correctAnswersCount++;
           _nextLesson();
