@@ -4,6 +4,7 @@ import 'cognitive_pause.dart';
 import 'lesson_order_letters.dart';
 import 'lesson_select_text.dart';
 import 'lesson_match_text_pairs.dart';
+import 'lesson_swipe_card.dart';
 import 'module_completed.dart';
 
 /// Runner that manages the sequential flow through all lessons in a module
@@ -219,6 +220,24 @@ class _LessonRunnerPageState extends State<LessonRunnerPage> {
         title: currentLesson['pregunta_titulo'] ?? 'Conecta los pares correspondientes',
         subtitle: currentLesson['pregunta_subtitulo'] ?? 'Toca el pronombre y conéctalo con su forma verbal',
         pairs: rawPairs,
+        onLessonComplete: () {
+          _correctAnswersCount++;
+          _nextLesson();
+        },
+      );
+    }
+
+    // 6. Activity: swipeCard
+    if (lessonType == 'swipeCard') {
+      final List<dynamic> rawCards = currentLesson['mazo_tarjetas'] ?? [];
+
+      return LessonSwipeCardPage(
+        key: ValueKey('lesson_$_currentIndex'),
+        moduleBadge: widget.moduleTitle,
+        title: currentLesson['pregunta_titulo'] ?? 'Desliza la imagen hacia el lado correcto',
+        subtitle: currentLesson['pregunta_subtitulo'] ?? 'escucha el audio y desliza la imagen',
+        voiceBy: currentLesson['voz_hablante'] ?? '',
+        cardDeck: rawCards,
         onLessonComplete: () {
           _correctAnswersCount++;
           _nextLesson();
