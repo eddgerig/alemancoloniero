@@ -1,10 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'widgets/white_turtle_icon.dart';
+import 'widgets/animated_turtle_button.dart';
 import 'widgets/exit_lesson_dialog.dart';
-import 'lesson_select_text.dart';
 
 class LessonSwipeCardPage extends StatefulWidget {
-  const LessonSwipeCardPage({super.key});
+  final String moduleBadge;
+  final String title;
+  final String subtitle;
+  final String voiceBy;
+  final List<dynamic> cardDeck;
+  final VoidCallback? onLessonComplete;
+
+  const LessonSwipeCardPage({
+    super.key,
+    required this.moduleBadge,
+    required this.title,
+    required this.subtitle,
+    this.voiceBy = '',
+    required this.cardDeck,
+    this.onLessonComplete,
+  });
 
   @override
   State<LessonSwipeCardPage> createState() => _LessonSwipeCardPageState();
@@ -14,35 +30,88 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
   Offset _cardOffset = Offset.zero;
   bool _isDragging = false;
   int _currentCardIndex = 0;
+  bool _isPlaying = false;
 
-  final List<Map<String, String>> _cards = [
-    {'title': 'Pan', 'image': 'assets/images/pan.png', 'emoji': '🍞'},
-    {'title': 'Café', 'image': 'assets/images/cafe.png', 'emoji': '☕'},
-    {'title': 'Queso', 'image': 'assets/images/queso.png', 'emoji': '🧀'},
-    {'title': 'Leche', 'image': 'assets/images/leche.png', 'emoji': '🥛'},
-  ];
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _feedbackPlayer = AudioPlayer();
 
-  void _onSwipe(bool isCorrectChoice) {
-    // Show feedback modal sheet based on swipe direction
+  @override
+  void initState() {
+    super.initState();
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+        });
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _playCardAudio(speed: 1.0);
+    });
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    _feedbackPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _playFeedbackSound(bool isCorrect) async {
+    try {
+      await _feedbackPlayer.stop();
+      if (isCorrect) {
+        await _feedbackPlayer.play(AssetSource('audio/correct_answer.wav'));
+      } else {
+        await _feedbackPlayer.play(AssetSource('audio/incorrect_answer.mp3'));
+      }
+    } catch (e) {
+      debugPrint('Error al reproducir audio de feedback: $e');
+    }
+  }
+
+  Future<void> _playCardAudio({double speed = 1.0}) async {
+    if (widget.cardDeck.isEmpty) return;
+    final currentCard = widget.cardDeck[_currentCardIndex];
+    final String? url = currentCard['audio_url'];
+    if (url == null || url.isEmpty) return;
+
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.setPlaybackRate(speed);
+      await _audioPlayer.play(UrlSource(url));
+    } catch (e) {
+      debugPrint('Error reproduciendo audio de tarjeta: $e');
+    }
+  }
+
+  void _onSwipe(bool swipedLeft) {
+    if (widget.cardDeck.isEmpty) return;
+
+    final currentCard = widget.cardDeck[_currentCardIndex];
+    final bool cardIsCorrect = (currentCard['es_correcto'] == true);
+
+    // Swiped LEFT (towards ✓ Checkmark side) -> expects cardIsCorrect == true
+    // Swiped RIGHT (towards ✕ Cross side) -> expects cardIsCorrect == false
+    final bool userWasRight = swipedLeft ? cardIsCorrect : !cardIsCorrect;
+
+    _playFeedbackSound(userWasRight);
+
     _showFeedbackSheet(
-      isCorrect: isCorrectChoice,
-      correctWord: _cards[_currentCardIndex]['title']!,
+      isCorrect: userWasRight,
+      correctWord: (currentCard['titulo'] ?? '').toString(),
     );
   }
 
   void _advanceToNextCardOrLesson() {
-    if (_currentCardIndex < _cards.length - 1) {
-      // Advance to next card in the deck
+    if (_currentCardIndex < widget.cardDeck.length - 1) {
       setState(() {
         _cardOffset = Offset.zero;
         _currentCardIndex++;
       });
+      _playCardAudio(speed: 1.0);
     } else {
-      // All cards completed -> Move to the next lesson page
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LessonSelectTextPage()),
-      );
+      widget.onLessonComplete?.call();
     }
   }
 
@@ -69,7 +138,6 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Status (Correct vs Incorrect)
               Row(
                 children: [
                   Container(
@@ -87,7 +155,7 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    isCorrect ? 'Correcto' : 'Incorrecto',
+                    isCorrect ? '¡Excelente!' : 'Incorrecto',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -96,10 +164,7 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 16),
-
-              // Option/Response Card
               Container(
                 padding: const EdgeInsets.all(16.0),
                 decoration: BoxDecoration(
@@ -116,7 +181,7 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isCorrect ? 'OPCIÓN CORRECTA:' : 'RESPUESTA CORRECTA',
+                            isCorrect ? 'TARJETA:' : 'RESPUESTA CORRECTA',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
@@ -136,72 +201,19 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
                         ],
                       ),
                     ),
-                    // Blue Audio Speaker Button
-                    GestureDetector(
-                      onTap: () {},
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF29B6F6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.volume_up_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
-
-              if (!isCorrect) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(16.0),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFBFBF9),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.access_time_rounded,
-                        color: Colors.grey.shade600,
-                        size: 22,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Volverás a ver esta palabra al final de la lección.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade700,
-                            height: 1.3,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
               const SizedBox(height: 24),
-
-              // Continuar Button
               SizedBox(
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context); // Close bottom sheet
+                    Navigator.pop(context);
                     if (isCorrect) {
                       _advanceToNextCardOrLesson();
                     } else {
-                      // Reset offset so user can retry current card
                       setState(() {
                         _cardOffset = Offset.zero;
                       });
@@ -235,8 +247,39 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
 
   @override
   Widget build(BuildContext context) {
-    final currentCard = _cards[_currentCardIndex];
-    final double progress = (_currentCardIndex + 1) / _cards.length;
+    if (widget.cardDeck.isEmpty) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 60, color: Colors.amber),
+                const SizedBox(height: 16),
+                const Text('No hay tarjetas registradas para esta lección.'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    widget.onLessonComplete?.call();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF27AE60),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Siguiente Lección'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final currentCard = widget.cardDeck[_currentCardIndex];
+    final String titleStr = (currentCard['titulo'] ?? '').toString();
+    final String imageStr = (currentCard['imagen_url'] ?? '').toString();
+    final double progress = (_currentCardIndex + 1) / widget.cardDeck.length;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -276,7 +319,7 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                "MÓDULO 2 · TARJETA ${_currentCardIndex + 1}/${_cards.length}",
+                "${widget.moduleBadge} · TARJETA ${_currentCardIndex + 1}/${widget.cardDeck.length}",
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -289,19 +332,19 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
             const SizedBox(height: 16),
 
             // Title & Subtitle
-            const Text(
-              'Desliza la imagen hacia el lado\ncorrecto',
+            Text(
+              widget.title,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'escucha el audio y desliza la imagen',
-              style: TextStyle(
+            Text(
+              widget.subtitle,
+              style: const TextStyle(
                 fontSize: 14,
                 color: Colors.grey,
               ),
@@ -314,14 +357,15 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 GestureDetector(
-                  onTap: () {},
-                  child: Container(
+                  onTap: () => _playCardAudio(speed: 1.0),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
                     width: 60,
                     height: 60,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF29B6F6),
+                    decoration: BoxDecoration(
+                      color: _isPlaying ? const Color(0xFF0288D1) : const Color(0xFF29B6F6),
                       shape: BoxShape.circle,
-                      boxShadow: [
+                      boxShadow: const [
                         BoxShadow(
                           color: Colors.black12,
                           blurRadius: 6,
@@ -329,48 +373,38 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.volume_up_rounded,
+                    child: Icon(
+                      _isPlaying ? Icons.graphic_eq_rounded : Icons.volume_up_rounded,
                       color: Colors.white,
                       size: 32,
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
-                GestureDetector(
-                  onTap: () {},
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF29B6F6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: WhiteTurtleIcon(size: 20, color: Colors.white),
-                    ),
-                  ),
+                AnimatedTurtleButton(
+                  onTap: () => _playCardAudio(speed: 0.6),
                 ),
               ],
             ),
 
-            const SizedBox(height: 6),
-
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.mic_none_rounded, size: 16, color: Colors.grey),
-                SizedBox(width: 4),
-                Text(
-                  'Voz: Hans Ruh',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
+            if (widget.voiceBy.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.mic_none_rounded, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Voz: ${widget.voiceBy}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
 
             const SizedBox(height: 12),
 
@@ -498,20 +532,27 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Expanded(
-                                    child: Image.asset(
-                                      currentCard['image']!,
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (context, error, stackTrace) => Center(
-                                        child: Text(
-                                          currentCard['emoji']!,
-                                          style: const TextStyle(fontSize: 90),
-                                        ),
-                                      ),
-                                    ),
+                                    child: imageStr.startsWith('http')
+                                        ? Image.network(
+                                            imageStr,
+                                            fit: BoxFit.contain,
+                                            errorBuilder: (context, error, stackTrace) => Center(
+                                              child: Text(
+                                                imageStr.length <= 4 ? imageStr : '🎴',
+                                                style: const TextStyle(fontSize: 90),
+                                              ),
+                                            ),
+                                          )
+                                        : Center(
+                                            child: Text(
+                                              imageStr.isNotEmpty ? imageStr : '🎴',
+                                              style: const TextStyle(fontSize: 90),
+                                            ),
+                                          ),
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
-                                    currentCard['title']!,
+                                    titleStr,
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
