@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'widgets/white_turtle_icon.dart';
 import 'widgets/animated_turtle_button.dart';
 import 'widgets/exit_lesson_dialog.dart';
+import 'services/api_service.dart';
 
 class LessonSwipeCardPage extends StatefulWidget {
   final String moduleBadge;
@@ -73,15 +73,19 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
   Future<void> _playCardAudio({double speed = 1.0}) async {
     if (widget.cardDeck.isEmpty) return;
     final currentCard = widget.cardDeck[_currentCardIndex];
-    final String? url = currentCard['audio_url'];
-    if (url == null || url.isEmpty) return;
+    final String? rawUrl = currentCard['audio_url'];
+    final String? fullUrl = ApiService.buildAudioUrl(rawUrl);
+    if (fullUrl == null || fullUrl.isEmpty) {
+      debugPrint('No hay audio disponible para la tarjeta $_currentCardIndex');
+      return;
+    }
 
     try {
       await _audioPlayer.stop();
       await _audioPlayer.setPlaybackRate(speed);
-      await _audioPlayer.play(UrlSource(url));
+      await _audioPlayer.play(UrlSource(fullUrl));
     } catch (e) {
-      debugPrint('Error reproduciendo audio de tarjeta: $e');
+      debugPrint('Error reproduciendo audio de tarjeta ($fullUrl): $e');
     }
   }
 
@@ -199,6 +203,23 @@ class _LessonSwipeCardPageState extends State<LessonSwipeCardPage> {
                             ),
                           ),
                         ],
+                      ),
+                    ),
+                    // Blue Audio Speaker Button
+                    GestureDetector(
+                      onTap: () => _playCardAudio(),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF29B6F6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _isPlaying ? Icons.pause_rounded : Icons.volume_up_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
                     ),
                   ],

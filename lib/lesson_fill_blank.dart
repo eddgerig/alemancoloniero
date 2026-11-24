@@ -1,10 +1,35 @@
 import 'package:flutter/material.dart';
-import 'widgets/white_turtle_icon.dart';
-import 'widgets/exit_lesson_dialog.dart';
-import 'lesson_order_letters.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'widgets/animated_turtle_button.dart';
+import 'services/api_service.dart';
 
 class LessonFillBlankPage extends StatefulWidget {
-  const LessonFillBlankPage({super.key});
+  final String moduleBadge;
+  final String title;
+  final String subtitle;
+  final String? audioUrl;
+  final String voiceBy;
+  final String sentencePrefix;
+  final String sentenceSuffix;
+  final String correctAnswer;
+  final String? fullCorrectSentence;
+  final List<String> options;
+  final VoidCallback? onLessonComplete;
+
+  const LessonFillBlankPage({
+    super.key,
+    required this.moduleBadge,
+    required this.title,
+    required this.subtitle,
+    this.audioUrl,
+    required this.voiceBy,
+    this.sentencePrefix = '',
+    this.sentenceSuffix = '',
+    required this.correctAnswer,
+    this.fullCorrectSentence,
+    required this.options,
+    this.onLessonComplete,
+  });
 
   @override
   State<LessonFillBlankPage> createState() => _LessonFillBlankPageState();
@@ -12,20 +37,72 @@ class LessonFillBlankPage extends StatefulWidget {
 
 class _LessonFillBlankPageState extends State<LessonFillBlankPage> {
   int? _selectedIndex;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _feedbackPlayer = AudioPlayer();
+  bool _isPlaying = false;
 
-  final List<String> _options = ['Tes', 'Tr', 'T'];
-  final String _sentenceSuffix = 'Brot mit kaffe';
-  final String _correctWord = 'Tes';
+  @override
+  void initState() {
+    super.initState();
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    _feedbackPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _playAudio({double speed = 1.0}) async {
+    final fullUrl = ApiService.buildAudioUrl(widget.audioUrl);
+    if (fullUrl == null || fullUrl.isEmpty) {
+      debugPrint('No hay audio disponible para reproducir');
+      return;
+    }
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.setPlaybackRate(speed);
+      await _audioPlayer.play(UrlSource(fullUrl));
+    } catch (e) {
+      debugPrint('Error al reproducir audio ($fullUrl): $e');
+    }
+  }
+
+  Future<void> _playFeedbackSound(bool isCorrect) async {
+    try {
+      await _feedbackPlayer.stop();
+      if (isCorrect) {
+        await _feedbackPlayer.play(AssetSource('audio/correct_answer.wav'));
+      } else {
+        await _feedbackPlayer.play(AssetSource('audio/incorrect_answer.mp3'));
+      }
+    } catch (e) {
+      debugPrint('Error al reproducir audio de feedback: $e');
+    }
+  }
 
   void _checkAnswer() {
-    if (_selectedIndex == null) return;
+    if (_selectedIndex == null || widget.options.isEmpty) return;
 
-    final String selectedWord = _options[_selectedIndex!];
-    final bool isCorrect = selectedWord == _correctWord;
+    final String selectedWord = widget.options[_selectedIndex!];
+    final bool isCorrect = selectedWord.trim().toLowerCase() == widget.correctAnswer.trim().toLowerCase();
+
+    _playFeedbackSound(isCorrect);
+
+    final String fullSentence = (widget.fullCorrectSentence != null && widget.fullCorrectSentence!.isNotEmpty)
+        ? widget.fullCorrectSentence!
+        : '${widget.sentencePrefix} ${widget.correctAnswer} ${widget.sentenceSuffix}'.trim();
 
     _showFeedbackSheet(
       isCorrect: isCorrect,
-      correctWord: 'Tes Brot mit kaffe',
+      correctWord: fullSentence,
     );
   }
 
@@ -120,22 +197,23 @@ class _LessonFillBlankPageState extends State<LessonFillBlankPage> {
                       ),
                     ),
                     // Blue Audio Speaker Button
-                    GestureDetector(
-                      onTap: () {},
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF29B6F6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.volume_up_rounded,
-                          color: Colors.white,
-                          size: 24,
+                    if (widget.audioUrl != null && widget.audioUrl!.isNotEmpty)
+                      GestureDetector(
+                        onTap: () => _playAudio(),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF29B6F6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            _isPlaying ? Icons.pause_rounded : Icons.volume_up_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -181,12 +259,9 @@ class _LessonFillBlankPageState extends State<LessonFillBlankPage> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LessonOrderLettersPage(),
-                      ),
-                    );
+                    if (widget.onLessonComplete != null) {
+                      widget.onLessonComplete!();
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF27AE60),
@@ -216,48 +291,24 @@ class _LessonFillBlankPageState extends State<LessonFillBlankPage> {
 
   @override
   Widget build(BuildContext context) {
-    final String selectedWordText = _selectedIndex != null ? _options[_selectedIndex!] : '__________';
+    final String selectedWordText = _selectedIndex != null ? widget.options[_selectedIndex!] : '__________';
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            // Top Progress Bar & Close button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: LinearProgressIndicator(
-                        value: 0.33,
-                        minHeight: 10,
-                        backgroundColor: Colors.grey.shade300,
-                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF29B6F6)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 28, color: Color(0xFF2C3E50)),
-                    onPressed: () => showExitLessonDialog(context),
-                  ),
-                ],
-              ),
-            ),
-
             // Module Badge
+            const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFF1B5E20),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text(
-                "MÓDULO 2 · Z'OOWA KAFFE",
-                style: TextStyle(
+              child: Text(
+                widget.moduleBadge.toUpperCase(),
+                style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 11,
@@ -269,38 +320,47 @@ class _LessonFillBlankPageState extends State<LessonFillBlankPage> {
             const SizedBox(height: 16),
 
             // Title & Subtitle
-            const Text(
-              'Selecciona la opción correcta',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Text(
+                widget.title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'escucha el audio y selecciona la palabra correctas',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Text(
+                widget.subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // Audio Controls
+            // Main Audio Controls (Top Speaker & Turtle)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 GestureDetector(
-                  onTap: () {},
-                  child: Container(
+                  onTap: () => _playAudio(speed: 1.0),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
                     width: 60,
                     height: 60,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF29B6F6),
+                    decoration: BoxDecoration(
+                      color: _isPlaying ? const Color(0xFF0288D1) : const Color(0xFF29B6F6),
                       shape: BoxShape.circle,
-                      boxShadow: [
+                      boxShadow: const [
                         BoxShadow(
                           color: Colors.black12,
                           blurRadius: 6,
@@ -308,41 +368,30 @@ class _LessonFillBlankPageState extends State<LessonFillBlankPage> {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.volume_up_rounded,
+                    child: Icon(
+                      _isPlaying ? Icons.graphic_eq_rounded : Icons.volume_up_rounded,
                       color: Colors.white,
                       size: 32,
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
-                GestureDetector(
-                  onTap: () {},
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF29B6F6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: WhiteTurtleIcon(size: 20, color: Colors.white),
-                    ),
-                  ),
+                AnimatedTurtleButton(
+                  onTap: () => _playAudio(speed: 0.6),
                 ),
               ],
             ),
 
             const SizedBox(height: 8),
 
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.mic_none_rounded, size: 16, color: Colors.grey),
-                SizedBox(width: 4),
+                const Icon(Icons.mic_none_rounded, size: 16, color: Colors.grey),
+                const SizedBox(width: 4),
                 Text(
-                  'Voz: Yolanda Fehr',
-                  style: TextStyle(
+                  'Voz: ${widget.voiceBy.isNotEmpty ? widget.voiceBy : "Hablante nativo"}',
+                  style: const TextStyle(
                     fontSize: 13,
                     color: Colors.grey,
                     fontWeight: FontWeight.w500,
@@ -356,11 +405,22 @@ class _LessonFillBlankPageState extends State<LessonFillBlankPage> {
             // Fill In The Blank Sentence Display
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
+                  if (widget.sentencePrefix.isNotEmpty)
+                    Text(
+                      widget.sentencePrefix,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+
                   // Blank Line or Selected Option
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
@@ -382,29 +442,31 @@ class _LessonFillBlankPageState extends State<LessonFillBlankPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  // Sentence Suffix
-                  Text(
-                    _sentenceSuffix,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
+
+                  if (widget.sentenceSuffix.isNotEmpty)
+                    Text(
+                      widget.sentenceSuffix,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
 
             const Spacer(),
 
-            // Word Tile Option Buttons (Horizontal Row)
+            // Word Tile Option Buttons (Horizontal Row or Wrap)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(_options.length, (index) {
-                  final optionText = _options[index];
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 12,
+                children: List.generate(widget.options.length, (index) {
+                  final optionText = widget.options[index];
                   final isSelected = _selectedIndex == index;
 
                   return GestureDetector(

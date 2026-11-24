@@ -11,8 +11,8 @@ class LessonMatchAudioImagePage extends StatefulWidget {
 }
 
 class _LessonMatchAudioImagePageState extends State<LessonMatchAudioImagePage> {
-  int? _selectedAudioIndex = 0;
-  int? _selectedImageIndex = 0;
+  int? _selectedAudioIndex;
+  int? _selectedImageIndex;
 
   final List<Map<String, String>> _audioItems = [
     {'voice': 'Yolanda Fehr', 'word': 'Café'},
@@ -196,7 +196,11 @@ class _LessonMatchAudioImagePageState extends State<LessonMatchAudioImagePage> {
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const ModuleCompletedPage(),
+                        builder: (context) => const ModuleCompletedPage(
+                          moduleTitle: "Z'OOWA KAFFE",
+                          wordsWorked: 4,
+                          completedLessons: 1,
+                        ),
                       ),
                     );
                   },

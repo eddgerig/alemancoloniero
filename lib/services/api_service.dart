@@ -37,6 +37,29 @@ class ApiService {
     defaultValue: 'http://77.112.240.202/api',
   );
 
+  static const String audioBaseUrl = String.fromEnvironment(
+    'AUDIO_BASE_URL',
+    defaultValue: 'https://aleman-coloniero-s3.s3.us-east-2.amazonaws.com',
+  );
+
+  /// Helper to convert a filename or relative audio path into a complete audio URL.
+  /// If [rawUrl] is null or empty, returns null.
+  /// If [rawUrl] is already a full URL (starts with http:// or https://), returns it as-is.
+  /// Otherwise, prepends [audioBaseUrl].
+  static String? buildAudioUrl(String? rawUrl) {
+    if (rawUrl == null) return null;
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return null;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    final cleanPath = trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
+    final cleanBase = audioBaseUrl.endsWith('/')
+        ? audioBaseUrl.substring(0, audioBaseUrl.length - 1)
+        : audioBaseUrl;
+    return '$cleanBase/$cleanPath';
+  }
+
   /// Helper to get current Firebase ID Token and construct headers
   static Future<Map<String, String>> _getHeaders() async {
     final User? user = FirebaseAuth.instance.currentUser;

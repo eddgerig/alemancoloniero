@@ -5,6 +5,7 @@ import 'lesson_order_letters.dart';
 import 'lesson_select_text.dart';
 import 'lesson_match_text_pairs.dart';
 import 'lesson_swipe_card.dart';
+import 'lesson_fill_blank.dart';
 import 'module_completed.dart';
 
 /// Runner that manages the sequential flow through all lessons in a module
@@ -238,6 +239,32 @@ class _LessonRunnerPageState extends State<LessonRunnerPage> {
         subtitle: currentLesson['pregunta_subtitulo'] ?? 'escucha el audio y desliza la imagen',
         voiceBy: currentLesson['voz_hablante'] ?? '',
         cardDeck: rawCards,
+        onLessonComplete: () {
+          _correctAnswersCount++;
+          _nextLesson();
+        },
+      );
+    }
+
+    // 7. Activity: fillInBlank
+    if (lessonType == 'fillInBlank') {
+      final List<dynamic> rawOptions = currentLesson['fichas_opciones'] ??
+          currentLesson['opciones'] ??
+          [];
+      final List<String> options = rawOptions.map((e) => e.toString()).toList();
+
+      return LessonFillBlankPage(
+        key: ValueKey('lesson_$_currentIndex'),
+        moduleBadge: widget.moduleTitle,
+        title: currentLesson['pregunta_titulo'] ?? 'Selecciona la opción correcta',
+        subtitle: currentLesson['pregunta_subtitulo'] ?? 'escucha el audio y selecciona la palabra correcta',
+        audioUrl: currentLesson['audio_url'],
+        voiceBy: currentLesson['voz_hablante'] ?? '',
+        sentencePrefix: currentLesson['oracion_prefijo'] ?? '',
+        sentenceSuffix: currentLesson['oracion_sufijo'] ?? '',
+        correctAnswer: (currentLesson['respuesta_correcta'] ?? '').toString(),
+        fullCorrectSentence: currentLesson['oracion_completa_correcta']?.toString(),
+        options: options,
         onLessonComplete: () {
           _correctAnswersCount++;
           _nextLesson();

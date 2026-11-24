@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'widgets/animated_turtle_button.dart';
 import 'widgets/exit_lesson_dialog.dart';
+import 'services/api_service.dart';
 
 class LessonQuestionPage extends StatefulWidget {
   final String moduleBadge;
@@ -30,7 +31,7 @@ class LessonQuestionPage extends StatefulWidget {
 }
 
 class _LessonQuestionPageState extends State<LessonQuestionPage> {
-  int? _selectedIndex = 0;
+  int? _selectedIndex;
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _cardAudioPlayer = AudioPlayer();
   final AudioPlayer _feedbackPlayer = AudioPlayer();
@@ -84,7 +85,7 @@ class _LessonQuestionPageState extends State<LessonQuestionPage> {
     );
   }
   Future<void> _playMainAudio({double speed = 1.0}) async {
-    final url = widget.audioUrl;
+    final url = ApiService.buildAudioUrl(widget.audioUrl);
     if (url == null || url.isEmpty) return;
     try {
       await _cardAudioPlayer.stop();
@@ -102,7 +103,8 @@ class _LessonQuestionPageState extends State<LessonQuestionPage> {
 
   /// Plays an option card's audio independently without animating top audio button
   Future<void> _playCardAudio(String? cardUrl) async {
-    final url = (cardUrl != null && cardUrl.isNotEmpty) ? cardUrl : widget.audioUrl;
+    final rawUrl = (cardUrl != null && cardUrl.isNotEmpty) ? cardUrl : widget.audioUrl;
+    final url = ApiService.buildAudioUrl(rawUrl);
     if (url == null || url.isEmpty) return;
     try {
       await _audioPlayer.stop();

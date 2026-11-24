@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'widgets/animated_turtle_button.dart';
 import 'widgets/exit_lesson_dialog.dart';
+import 'services/api_service.dart';
 
 class LessonSelectTextPage extends StatefulWidget {
   final String moduleBadge;
@@ -32,7 +33,7 @@ class LessonSelectTextPage extends StatefulWidget {
 }
 
 class _LessonSelectTextPageState extends State<LessonSelectTextPage> {
-  int? _selectedIndex = 0;
+  int? _selectedIndex;
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _cardAudioPlayer = AudioPlayer();
   final AudioPlayer _feedbackPlayer = AudioPlayer();
@@ -59,7 +60,7 @@ class _LessonSelectTextPageState extends State<LessonSelectTextPage> {
   }
 
   Future<void> _playMainAudio({double speed = 1.0}) async {
-    final url = widget.audioUrl;
+    final url = ApiService.buildAudioUrl(widget.audioUrl);
     if (url == null || url.isEmpty) return;
     try {
       await _cardAudioPlayer.stop();
@@ -71,7 +72,8 @@ class _LessonSelectTextPageState extends State<LessonSelectTextPage> {
     }
   }
 
-  Future<void> _playOptionAudio(String? optionUrl) async {
+  Future<void> _playOptionAudio(String? rawOptionUrl) async {
+    final optionUrl = ApiService.buildAudioUrl(rawOptionUrl);
     if (optionUrl == null || optionUrl.isEmpty) return;
     try {
       await _audioPlayer.stop();

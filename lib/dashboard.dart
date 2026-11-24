@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'widgets/gradient_background.dart';
@@ -339,10 +340,13 @@ class _DashboardPageState extends State<DashboardPage> with SingleTickerProvider
   }
 
   Widget _buildSingleNodeFromApi(Map<String, dynamic> node) {
+    // Flag de desarrollo: en modo Debug (kDebugMode), todos los módulos y relatos se desbloquean automáticamente.
+    const bool devUnlockAll = kDebugMode;
+
     final String estado = node['estado'] ?? 'bloqueado';
     final bool isCompleted = estado == 'completado';
-    final bool isCurrent = estado == 'en_curso';
-    final bool isLocked = estado == 'bloqueado';
+    final bool isCurrent = estado == 'en_curso' || (devUnlockAll && estado == 'bloqueado');
+    final bool isLocked = devUnlockAll ? false : (estado == 'bloqueado');
 
     return _buildPathNode(
       icon: _parseIcon(node['icono']),
