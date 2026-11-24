@@ -336,6 +336,113 @@ class ApiService {
     }
   }
 
+  /// POST/PATCH /progresos-modulo/ - Create or update module progress
+  static Future<Map<String, dynamic>> startModuleProgress({
+    required int usuarioId,
+    required int moduloId,
+    String estado = 'en_curso',
+   // int intento = 1,
+  }) async {
+    final headers = await _getHeaders();
+    final collectionUri = Uri.parse('$baseUrl/progresos-modulo/').replace(
+      queryParameters: {
+        'usuario': usuarioId.toString(),
+        'modulo': moduloId.toString(),
+      },
+    );
+    final Map<String, dynamic> payload = {
+      'usuario': usuarioId,
+      'modulo': moduloId,
+      'estado': estado,
+      //'intento': intento,
+    };
+
+    try {
+      // 1. Buscar si ya existe el progreso del usuario en ese módulo.
+      final searchResponse = await http
+          .get(collectionUri, headers: headers)
+          .timeout(const Duration(seconds: 10));
+
+      if (searchResponse.statusCode >= 200 && searchResponse.statusCode < 300) {
+        final dynamic rawData =
+            jsonDecode(utf8.decode(searchResponse.bodyBytes));
+
+        List<dynamic> records = [];
+        if (rawData is List) {
+          records = rawData;
+        } else if (rawData is Map<String, dynamic>) {
+          if (rawData['results'] is List) {
+            records = rawData['results'] as List<dynamic>;
+          } else if (rawData['data'] is List) {
+            records = rawData['data'] as List<dynamic>;
+          }
+        }
+
+        // 2. Si existe, actualizar mediante PATCH.
+        if (records.isNotEmpty && records.first is Map) {
+          final Map<String, dynamic> existing =
+              Map<String, dynamic>.from(records.first as Map);
+          final int? progressId = existing['id'] is int
+              ? existing['id'] as int
+              : int.tryParse(existing['id']?.toString() ?? '');
+
+          if (progressId != null) {
+            final detailUri = Uri.parse(
+              '$baseUrl/progresos-modulo/$progressId/',
+            );
+            final patchResponse = await http
+                .patch(detailUri, headers: headers, body: jsonEncode(payload))
+                .timeout(const Duration(seconds: 10));
+
+            if (patchResponse.statusCode >= 200 &&
+                patchResponse.statusCode < 300) {
+              final dynamic raw =
+                  jsonDecode(utf8.decode(patchResponse.bodyBytes));
+              return {
+                'success': true,
+                'operation': 'patch',
+                'data': raw is Map<String, dynamic> ? raw : {'data': raw},
+              };
+            }
+
+            return {
+              'success': false,
+              'error':
+                  'Error al actualizar el progreso (${patchResponse.statusCode})',
+            };
+          }
+        }
+      }
+
+      // 3. Si no existe, crear mediante POST.
+      final collectionUriPost = Uri.parse('$baseUrl/progresos-modulo/');
+      final postResponse = await http
+          .post(collectionUriPost, headers: headers, body: jsonEncode(payload))
+          .timeout(const Duration(seconds: 10));
+
+      if (postResponse.statusCode >= 200 && postResponse.statusCode < 300) {
+        final dynamic raw = jsonDecode(utf8.decode(postResponse.bodyBytes));
+        return {
+          'success': true,
+          'operation': 'post',
+          'data': raw is Map<String, dynamic> ? raw : {'data': raw},
+        };
+      }
+
+      final dynamic body = jsonDecode(utf8.decode(postResponse.bodyBytes));
+      final String error = body is Map<String, dynamic> && body['detail'] is String
+          ? body['detail']
+          : 'Error al registrar el progreso (${postResponse.statusCode})';
+      return {'success': false, 'error': error};
+    } catch (e) {
+      debugPrint('Error registrando progreso del módulo: $e');
+      return {
+        'success': false,
+        'error': 'No se pudo conectar al servidor ($e)',
+      };
+    }
+  }
+
   /// GET /auth/me/ - Sync & Get Current Backend User
   static Future<BackendUser> getMe() async {
     final headers = await _getHeaders();

@@ -7,9 +7,11 @@ import 'lesson_match_text_pairs.dart';
 import 'lesson_swipe_card.dart';
 import 'lesson_fill_blank.dart';
 import 'module_completed.dart';
+import 'services/api_service.dart';
 
 /// Runner that manages the sequential flow through all lessons in a module
 class LessonRunnerPage extends StatefulWidget {
+  final int moduloId;
   final String moduleTitle;
   final List<dynamic> lessons;
   final Map<String, dynamic>? estadisticasCierre;
@@ -17,6 +19,7 @@ class LessonRunnerPage extends StatefulWidget {
 
   const LessonRunnerPage({
     super.key,
+    required this.moduloId,
     required this.moduleTitle,
     required this.lessons,
     this.estadisticasCierre,
@@ -32,7 +35,7 @@ class _LessonRunnerPageState extends State<LessonRunnerPage> {
   int _correctAnswersCount = 0;
   final int _incorrectAnswersCount = 0;
 
-  void _nextLesson() {
+  Future<void> _nextLesson() async {
     if (_currentIndex + 1 < widget.lessons.length) {
       setState(() {
         _currentIndex++;
@@ -89,6 +92,23 @@ class _LessonRunnerPageState extends State<LessonRunnerPage> {
       debugPrint('- Porcentaje de Acierto: ${porcentajeAcierto.toStringAsFixed(1)}%');
       debugPrint('- Estado: ${esAprobado ? "APROBADO (>= 70%)" : "NO APROBADO (< 70%)"}');
       debugPrint('==================================================');
+
+      if (esAprobado) {
+        final user = await ApiService.getMe();
+        final progressResult = await ApiService.startModuleProgress(
+          usuarioId: user.id,
+          moduloId: widget.moduloId,
+          estado: 'completado',
+        );
+
+        if (progressResult['success'] == true) {
+          debugPrint('Progreso del módulo actualizado a completado.');
+        } else {
+          debugPrint(
+            'No se pudo actualizar el progreso: ${progressResult['error']}',
+          );
+        }
+      }
 
       Navigator.pushReplacement(
         context,
