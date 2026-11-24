@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'services/api_service.dart';
+import 'models/user_model.dart';
 import 'lesson_runner.dart';
 import 'widgets/animated_turtle_button.dart';
 import 'widgets/exit_lesson_dialog.dart';
@@ -312,6 +313,24 @@ class _ModuleIntroPageState extends State<ModuleIntroPage> {
                     await _audioPlayer.stop();
                     if (!mounted) return;
 
+                    final BackendUser user = await ApiService.getMe();
+                    final progressResult = await ApiService.startModuleProgress(
+                      usuarioId: user.id,
+                      moduloId: widget.moduloId,
+                      estado: 'en_curso',
+                      //intento: 1,
+                    );
+
+                    if (progressResult['success'] != true) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(progressResult['error'] ?? 'No se pudo registrar el inicio del módulo'),
+                        ),
+                      );
+                      return;
+                    }
+
                     final Map<String, dynamic> combinedStats = {};
                     if (_moduleData!['estadisticas_cierre'] is Map<String, dynamic>) {
                       combinedStats.addAll(_moduleData!['estadisticas_cierre']);
@@ -331,6 +350,7 @@ class _ModuleIntroPageState extends State<ModuleIntroPage> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => LessonRunnerPage(
+                            moduloId: widget.moduloId,
                             moduleTitle: moduleTitle,
                             lessons: lecciones,
                             estadisticasCierre: combinedStats,
