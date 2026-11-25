@@ -8,6 +8,7 @@ class LessonMatchTextPairsPage extends StatefulWidget {
   final String subtitle;
   final List<dynamic> pairs;
   final VoidCallback? onLessonComplete;
+  final void Function(bool isCorrect)? onAnswerChecked;
 
   const LessonMatchTextPairsPage({
     super.key,
@@ -16,6 +17,7 @@ class LessonMatchTextPairsPage extends StatefulWidget {
     required this.subtitle,
     required this.pairs,
     this.onLessonComplete,
+    this.onAnswerChecked,
   });
 
   @override
@@ -143,11 +145,6 @@ class _LessonMatchTextPairsPageState extends State<LessonMatchTextPairsPage> {
         _selectedLeftIndex = null;
         _selectedRightIndex = null;
       });
-
-      // Check if all pairs matched
-      if (_matchedLeftIndices.length == _leftItems.length) {
-        _showFeedbackSheet(isCorrect: true);
-      }
     } else {
       _playFeedbackSound(false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -228,6 +225,7 @@ class _LessonMatchTextPairsPageState extends State<LessonMatchTextPairsPage> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
+                    widget.onAnswerChecked?.call(isCorrect);
                     if (widget.onLessonComplete != null) {
                       widget.onLessonComplete!();
                     }

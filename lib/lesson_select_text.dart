@@ -14,6 +14,7 @@ class LessonSelectTextPage extends StatefulWidget {
   final String correctAnswer;
   final List<dynamic> options;
   final VoidCallback? onLessonComplete;
+  final void Function(bool isCorrect)? onAnswerChecked;
 
   const LessonSelectTextPage({
     super.key,
@@ -26,6 +27,7 @@ class LessonSelectTextPage extends StatefulWidget {
     required this.correctAnswer,
     required this.options,
     this.onLessonComplete,
+    this.onAnswerChecked,
   });
 
   @override

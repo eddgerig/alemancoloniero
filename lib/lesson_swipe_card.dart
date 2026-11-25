@@ -11,6 +11,7 @@ class LessonSwipeCardPage extends StatefulWidget {
   final String voiceBy;
   final List<dynamic> cardDeck;
   final VoidCallback? onLessonComplete;
+  final void Function(bool isCorrect)? onAnswerChecked;
 
   const LessonSwipeCardPage({
     super.key,
@@ -20,6 +21,7 @@ class LessonSwipeCardPage extends StatefulWidget {
     this.voiceBy = '',
     required this.cardDeck,
     this.onLessonComplete,
+    this.onAnswerChecked,
   });
 
   @override

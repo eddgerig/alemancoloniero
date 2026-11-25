@@ -33,7 +33,17 @@ class LessonRunnerPage extends StatefulWidget {
 class _LessonRunnerPageState extends State<LessonRunnerPage> {
   int _currentIndex = 0;
   int _correctAnswersCount = 0;
-  final int _incorrectAnswersCount = 0;
+  int _incorrectAnswersCount = 0;
+
+  void _registerAnswer(bool isCorrect) {
+    setState(() {
+      if (isCorrect) {
+        _correctAnswersCount++;
+      } else {
+        _incorrectAnswersCount++;
+      }
+    });
+  }
 
   Future<void> _nextLesson() async {
     if (_currentIndex + 1 < widget.lessons.length) {
@@ -169,10 +179,8 @@ class _LessonRunnerPageState extends State<LessonRunnerPage> {
         voiceBy: currentLesson['voz_hablante'] ?? '',
         correctAnswer: currentLesson['respuesta_correcta'] ?? '',
         options: currentLesson['opciones'] ?? [],
-        onLessonComplete: () {
-          _correctAnswersCount++;
-          _nextLesson();
-        },
+        onAnswerChecked: _registerAnswer,
+        onLessonComplete: _nextLesson,
       );
     }
 
@@ -200,10 +208,8 @@ class _LessonRunnerPageState extends State<LessonRunnerPage> {
         imageUrl: currentLesson['imagen_url'],
         targetWord: (currentLesson['palabra_objetivo'] ?? 'MOORKA').toString(),
         availableLetters: letters,
-        onLessonComplete: () {
-          _correctAnswersCount++;
-          _nextLesson();
-        },
+        onAnswerChecked: _registerAnswer,
+        onLessonComplete: _nextLesson,
       );
     }
 
@@ -224,10 +230,8 @@ class _LessonRunnerPageState extends State<LessonRunnerPage> {
         voiceBy: currentLesson['voz_hablante'] ?? '',
         correctAnswer: currentLesson['respuesta_correcta'] ?? '',
         options: rawOptions,
-        onLessonComplete: () {
-          _correctAnswersCount++;
-          _nextLesson();
-        },
+        onAnswerChecked: _registerAnswer,
+        onLessonComplete: _nextLesson,
       );
     }
 
@@ -241,10 +245,8 @@ class _LessonRunnerPageState extends State<LessonRunnerPage> {
         title: currentLesson['pregunta_titulo'] ?? 'Conecta los pares correspondientes',
         subtitle: currentLesson['pregunta_subtitulo'] ?? 'Toca el pronombre y conéctalo con su forma verbal',
         pairs: rawPairs,
-        onLessonComplete: () {
-          _correctAnswersCount++;
-          _nextLesson();
-        },
+        onAnswerChecked: _registerAnswer,
+        onLessonComplete: _nextLesson,
       );
     }
 
@@ -259,10 +261,8 @@ class _LessonRunnerPageState extends State<LessonRunnerPage> {
         subtitle: currentLesson['pregunta_subtitulo'] ?? 'escucha el audio y desliza la imagen',
         voiceBy: currentLesson['voz_hablante'] ?? '',
         cardDeck: rawCards,
-        onLessonComplete: () {
-          _correctAnswersCount++;
-          _nextLesson();
-        },
+        onAnswerChecked: _registerAnswer,
+        onLessonComplete: _nextLesson,
       );
     }
 
@@ -285,10 +285,8 @@ class _LessonRunnerPageState extends State<LessonRunnerPage> {
         correctAnswer: (currentLesson['respuesta_correcta'] ?? '').toString(),
         fullCorrectSentence: currentLesson['oracion_completa_correcta']?.toString(),
         options: options,
-        onLessonComplete: () {
-          _correctAnswersCount++;
-          _nextLesson();
-        },
+        onAnswerChecked: _registerAnswer,
+        onLessonComplete: _nextLesson,
       );
     }
 

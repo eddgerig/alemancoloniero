@@ -15,6 +15,7 @@ class LessonFillBlankPage extends StatefulWidget {
   final String? fullCorrectSentence;
   final List<String> options;
   final VoidCallback? onLessonComplete;
+  final void Function(bool isCorrect)? onAnswerChecked;
 
   const LessonFillBlankPage({
     super.key,
@@ -29,6 +30,7 @@ class LessonFillBlankPage extends StatefulWidget {
     this.fullCorrectSentence,
     required this.options,
     this.onLessonComplete,
+    this.onAnswerChecked,
   });
 
   @override

@@ -10,6 +10,7 @@ class LessonOrderLettersPage extends StatefulWidget {
   final String targetWord;
   final List<String> availableLetters;
   final VoidCallback? onLessonComplete;
+  final void Function(bool isCorrect)? onAnswerChecked;
 
   const LessonOrderLettersPage({
     super.key,
@@ -20,6 +21,7 @@ class LessonOrderLettersPage extends StatefulWidget {
     required this.targetWord,
     required this.availableLetters,
     this.onLessonComplete,
+    this.onAnswerChecked,
   });
 
   @override
@@ -337,10 +339,10 @@ class _LessonOrderLettersPageState extends State<LessonOrderLettersPage> {
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF1E293B),
                             ),
+                            ),
                           ),
                         ),
-                      ),
-                    );
+                      );
                   }),
                 ),
                 const SizedBox(height: 10),
