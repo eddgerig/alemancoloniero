@@ -145,6 +145,10 @@ class _LessonMatchTextPairsPageState extends State<LessonMatchTextPairsPage> {
         _selectedLeftIndex = null;
         _selectedRightIndex = null;
       });
+
+      if (_matchedLeftIndices.length == _leftItems.length) {
+        _showFeedbackSheet(isCorrect: true);
+      }
     } else {
       _playFeedbackSound(false);
       ScaffoldMessenger.of(context).showSnackBar(
