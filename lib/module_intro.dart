@@ -42,6 +42,12 @@ class _ModuleIntroPageState extends State<ModuleIntroPage> {
 
   Future<void> _fetchModuleLessons() async {
     final result = await ApiService.getModuleLessons(widget.moduloId);
+    
+    debugPrint('==================================================');
+    debugPrint('CARGA DEL MÓDULO ${widget.moduloId}');
+    debugPrint('Respuesta completa: $result');
+    debugPrint('==================================================');
+
     if (mounted) {
       if (result['success'] == true) {
         setState(() {
